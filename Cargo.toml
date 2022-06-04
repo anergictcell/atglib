@@ -2,8 +2,14 @@
 name = "atglib"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors = ["Jonas Marcello <jonas.marcello@esbme.com>"]
+description = "A library to handle transcripts for genomics and transcriptomics"
+readme = "README.md"
+homepage = "https://github.com/anergictcell/atglib"
+repository = "https://github.com/anergictcell/atglib"
+license = "MIT"
+keywords = ["bioinformatics", "genomics", "transcriptomics", "transcript", "genetics"]
+categories = ["science", "data-structures", "parser-implementations"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

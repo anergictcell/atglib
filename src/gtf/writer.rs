@@ -160,8 +160,14 @@ impl<'a> Composer<'a> {
         }
 
         // One record for every exon
+        let total_exons = self.transcript.exon_count();
         for (idx, exon) in self.transcript.exons().iter().enumerate() {
-            let exon_number = idx + 1;
+            let exon_number = if self.transcript.forward() {
+                idx + 1
+            } else {
+                total_exons - idx
+            };
+
             lines.push(self.exon(exon, &exon_number));
 
             if exon.is_coding() {

@@ -222,7 +222,9 @@ impl Sequence {
     /// Creates a new `Sequence` from a raw bytes nucleotide sequence, ignoring newlines
     ///
     /// The `len` value is not required to be correct, it helps with allocating the right
-    /// amount of memory for the Sequence.
+    /// amount of memory for the Sequence. The length of the byte vector can be misleading
+    /// because it might contain newlines and other whitespace that is not added to the
+    /// Sequence.
     ///
     /// # Examples
     ///
@@ -380,6 +382,27 @@ impl Sequence {
     /// ```
     pub fn to_bytes(&self) -> Vec<u8> {
         self.sequence.iter().map(|n| n.to_bytes()).collect()
+    }
+
+    /// Writes the sequence into a target String
+    ///
+    /// The function does not make any assumption about the state of the
+    /// target string. The client is expected to clear the string beforehand
+    ///
+    /// # Examples
+    /// ```rust
+    /// use atglib::models::Sequence;
+    ///
+    /// let mut seq = Sequence::from_raw_bytes("AC".as_bytes(), 2).unwrap();
+    /// let mut my_string = String::new();
+    /// seq.write_into_string(& mut my_string);
+    /// assert_eq!(my_string, "AC");
+    /// assert_eq!(my_string.len(), 2);
+    /// ```
+    pub fn write_into_string(&self, target: &mut String) {
+        for c in &self.sequence {
+            target.push(c.into())
+        }
     }
 }
 

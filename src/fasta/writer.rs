@@ -42,7 +42,7 @@ use crate::utils::errors::ReadWriteError;
 /// writer.writeln_single_transcript(&transcript).unwrap();
 ///
 /// # let output = String::from_utf8(writer.into_inner().unwrap()).unwrap();
-/// # assert_eq!(output.split('\n').collect::<Vec<&str>>()[1], "AGGCCCACTCA");
+/// # assert_eq!(output.split('\n').collect::<Vec<&str>>()[1], "ATGCCCACTGA");
 /// ```
 /// This will write the Fasta data like this:
 /// ```text
@@ -65,12 +65,12 @@ use crate::utils::errors::ReadWriteError;
 /// writer.writeln_single_transcript(&transcript).unwrap();
 ///
 /// # let output = String::from_utf8(writer.into_inner().unwrap()).unwrap();
-/// # assert_eq!(output.split('\n').collect::<Vec<&str>>()[1], "CACGGGGAAATGGAGGGACTGCCCAGTAGCCTCAGGACACAGGGG");
+/// # assert_eq!(output.split('\n').collect::<Vec<&str>>()[1], "CACGGGGAAATGGATGGACTGCCCAGTAGCCTGAGGACACAGGGG");
 /// ```
 /// This will write the Fasta data like this:
 /// ```text
 /// > Test-Transcript Test-Gene
-/// CACGGGGAAATGGAGGGACTGCCCAGTAGCCTCAGGACACAGGGG
+/// CACGGGGAAATGGATGGACTGCCCAGTAGCCTGAGGACACAGGGG
 /// ```
 pub struct Writer<W: std::io::Write> {
     inner: BufWriter<W>,
@@ -191,7 +191,7 @@ impl<W: std::io::Write> Writer<W> {
     /// This will write the Fasta data like this:
     /// ```text
     /// >Test-Gene|Test-Transcript chr1:11-55
-    /// CACGGGGAAATGGAGGGACTGCCCAGTAGCCTCAGGACACAGGGG
+    /// CACGGGGAAATGGATGGACTGCCCAGTAGCCTGAGGACACAGGGG
     /// ```
     pub fn header_template(&mut self, func: fn(&Transcript) -> String) {
         self.header_template = func
@@ -431,7 +431,7 @@ mod tests {
         );
         assert_eq!(
             output.split('\n').collect::<Vec<&str>>()[1],
-            "CACGGTGGAGGCCCACTCAGAGGGG"
+            "CACGGTGGATGCCCACTGAGAGGGG"
         );
 
         let mut writer = Writer::new(Vec::new());
@@ -443,7 +443,7 @@ mod tests {
             output.split('\n').collect::<Vec<&str>>()[0],
             ">Test-Transcript Test-Gene"
         );
-        assert_eq!(output.split('\n').collect::<Vec<&str>>()[1], "AGGCCCACTCA");
+        assert_eq!(output.split('\n').collect::<Vec<&str>>()[1], "ATGCCCACTGA");
 
         let mut writer = Writer::new(Vec::new());
         writer.fasta_reader(FastaReader::from_file("tests/data/small.fasta").unwrap());
@@ -456,7 +456,7 @@ mod tests {
         );
         assert_eq!(
             output.split('\n').collect::<Vec<&str>>()[1],
-            "CACGGGGAAATGGAGGGACTGCCCAGTAGCCTCAGGACACAGGGG"
+            "CACGGGGAAATGGATGGACTGCCCAGTAGCCTGAGGACACAGGGG"
         );
     }
 
@@ -465,6 +465,6 @@ mod tests {
         let transcript = standard_transcript();
         let mut reader = FastaReader::from_file("tests/data/small.fasta").unwrap();
         let seq = SequenceBuilder::Cds.build(&transcript, &mut reader);
-        assert_eq!(seq.to_string(), "AGGCCCACTCA".to_string());
+        assert_eq!(seq.to_string(), "ATGCCCACTGA".to_string());
     }
 }

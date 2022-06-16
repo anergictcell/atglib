@@ -280,14 +280,17 @@ pub fn nm_201550() -> Transcript {
 /// ```text
 /// Nucleotide positions:
 ///
-///    1....   2....   3....   4....   5....
-///    12345   12345   12345   12345   12345
-/// ---=====---===XX---XXXXX---XXXX=---=====---
+///    1....     2....     3....     4....     5....
+///    12345     12345     12345     12345     12345
+/// ---=====-----===XX-----XXXXX-----XXXX=-----=====---
+///    CACGGGGAAATGGAGGGACTGCCCAGTAGCCTGAGGACACAGGGG
 ///
 /// ---  Intron
 /// ===  Exon (non-coding)
 /// XXX  CDS
+/// ATGC DNA sequence if small.fasta is used as reference-genome
 /// ```
+///
 pub fn standard_transcript() -> models::Transcript {
     let mut transcript = models::TranscriptBuilder::new()
         .name("Test-Transcript")

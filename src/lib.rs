@@ -21,6 +21,7 @@ use crate::utils::errors::ReadWriteError;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+/// Generic function to read transcript from any possible source
 pub fn read_transcripts<R: TranscriptRead>(
     reader: Result<R, ReadWriteError>,
 ) -> Result<Transcripts, ReadWriteError> {

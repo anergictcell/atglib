@@ -283,7 +283,7 @@ pub fn nm_201550() -> Transcript {
 ///    1....     2....     3....     4....     5....
 ///    12345     12345     12345     12345     12345
 /// ---=====-----===XX-----XXXXX-----XXXX=-----=====---
-///    CACGGGGAAATGGAGGGACTGCCCAGTAGCCTGAGGACACAGGGG
+///    CACGGGGAAATGGATGGACTGCCCAGTAGCCTGAGGACACAGGGG
 ///
 /// ---  Intron
 /// ===  Exon (non-coding)

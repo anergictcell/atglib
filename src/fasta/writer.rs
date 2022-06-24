@@ -6,7 +6,7 @@ use std::str::FromStr;
 use crate::fasta::FastaReader;
 use crate::models::CoordinateVector;
 use crate::models::{Sequence, Transcript, TranscriptWrite};
-use crate::utils::errors::ReadWriteError;
+use crate::utils::errors::{FastaError, ReadWriteError};
 
 /// Writes [`Transcript`]s into a `BufWriter`
 ///
@@ -265,7 +265,7 @@ impl<W: std::io::Write> Writer<W> {
                 String::with_capacity(10), // start-position
                 String::with_capacity(10), // end-position
                 transcript.strand().to_string(),
-                String::with_capacity(6),  // feature-type
+                String::with_capacity(6), // feature-type
             ];
 
             // the line_string is the final aggregated string that will be printed
@@ -329,7 +329,7 @@ impl<W: std::io::Write> TranscriptWrite for Writer<W> {
             self.inner
                 .write_all(format!(">{}", (self.header_template)(transcript)).as_bytes())?;
 
-            let sequence = self.seq_builder.build(transcript, fasta_reader).to_bytes();
+            let sequence = self.seq_builder.build(transcript, fasta_reader)?.to_bytes();
             // ensure line breaks after x nucleotides, as per FASTA specs
             // the last line will _not_ end in a line-break
             for line in sequence.chunks(self.line_length) {
@@ -363,14 +363,11 @@ enum SequenceBuilder {
 
 impl SequenceBuilder {
     /// Builds the actual Sequence
-    ///
-    /// # Panics
-    ///
-    /// This method panics if the transcript cannot be converted to a Sequence.
-    /// This could happen when the transcript's location is out of bounds of the Fasta file,
-    /// the Fasta file becomes unavaible during the reading
-    /// or if the Fasta file contains invalid Nucleotides
-    pub fn build(&self, transcript: &Transcript, fasta_reader: &mut FastaReader<File>) -> Sequence {
+    pub fn build(
+        &self,
+        transcript: &Transcript,
+        fasta_reader: &mut FastaReader<File>,
+    ) -> Result<Sequence, FastaError> {
         let segments = match self {
             SequenceBuilder::Cds => transcript.cds_coordinates(),
             SequenceBuilder::Exons => transcript.exon_coordinates(),
@@ -381,20 +378,7 @@ impl SequenceBuilder {
             )],
         };
 
-        let capacity: u32 = segments.iter().map(|x| x.2 - x.1 + 1).sum();
-        let mut seq = Sequence::with_capacity(capacity as usize);
-
-        for segment in segments {
-            seq.append(
-                fasta_reader
-                    .read_sequence(segment.0, segment.1.into(), segment.2.into())
-                    .unwrap(), // possible panic documented in signature
-            )
-        }
-        if !transcript.forward() {
-            seq.reverse_complement()
-        }
-        seq
+        Sequence::from_coordinates(&segments, &transcript.strand(), fasta_reader)
     }
 }
 
@@ -465,6 +449,6 @@ mod tests {
         let transcript = standard_transcript();
         let mut reader = FastaReader::from_file("tests/data/small.fasta").unwrap();
         let seq = SequenceBuilder::Cds.build(&transcript, &mut reader);
-        assert_eq!(seq.to_string(), "ATGCCCACTGA".to_string());
+        assert_eq!(seq.unwrap().to_string(), "ATGCCCACTGA".to_string());
     }
 }

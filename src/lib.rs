@@ -10,6 +10,7 @@ pub mod genepred;
 pub mod genepredext;
 pub mod gtf;
 pub mod models;
+pub mod qc;
 pub mod refgene;
 pub mod tests;
 pub mod utils;

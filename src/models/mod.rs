@@ -17,6 +17,13 @@ pub use crate::models::transcript::{Coordinate, CoordinateVector, Transcript, Tr
 pub use crate::models::transcripts::Transcripts;
 pub use crate::models::utils::{CdsStat, Strand, TranscriptRead, TranscriptWrite};
 
+pub const START_CODON: [sequence::Nucleotide; 3] = [Nucleotide::A, Nucleotide::T, Nucleotide::G];
+pub const STOP_CODONS: [[sequence::Nucleotide; 3]; 3] = [
+    [Nucleotide::T, Nucleotide::A, Nucleotide::G],
+    [Nucleotide::T, Nucleotide::A, Nucleotide::A],
+    [Nucleotide::T, Nucleotide::G, Nucleotide::A],
+];
+
 #[cfg(test)]
 mod tests {
     // Note this useful idiom: importing names from outer (for mod tests) scope.
@@ -262,6 +269,85 @@ mod test_start_codon {
 }
 
 #[cfg(test)]
+mod test_start_codon_negative_strand {
+    //       1....   2....   3....   4....   5....
+    //       12345   12345   12345   12345   12345
+    //    ---=====---===XX---XXXXX---XXXX=---=====---
+    // 1. ---=====---===XX---XXXXX---XGTA=---=====--- >> all in one exon
+    // 2. ---=====---===XX---XXXXG---TA===---=====--- >> split
+    // 3. ---=====---====X---XXXGT---A====---=====--- >> split
+    // 4. ---=====---====G-----T-----A====---=====--- >> not really possible, but for the sake of it, let's consider it as well
+
+    use super::*;
+    use crate::tests::transcripts::standard_transcript;
+
+    #[test]
+    fn case_1() {
+        let mut transcript = standard_transcript();
+        *transcript.strand_mut() = Strand::Minus;
+        let a = transcript.start_codon();
+
+        assert_eq!(a.len(), 1);
+        assert_eq!(a[0].0, 42);
+        assert_eq!(a[0].1, 44);
+    }
+
+    #[test]
+    fn case_2() {
+        let mut transcript = standard_transcript();
+        *transcript.exons_mut()[3].cds_end_mut() = Some(42);
+
+        *transcript.strand_mut() = Strand::Minus;
+        let a = transcript.start_codon();
+
+        assert_eq!(a.len(), 2);
+        assert_eq!(a[0].0, 35);
+        assert_eq!(a[0].1, 35);
+
+        assert_eq!(a[1].0, 41);
+        assert_eq!(a[1].1, 42);
+    }
+
+    #[test]
+    fn case_3() {
+        let mut transcript = standard_transcript();
+        *transcript.exons_mut()[3].cds_end_mut() = Some(41);
+
+        *transcript.strand_mut() = Strand::Minus;
+        let a = transcript.start_codon();
+
+        assert_eq!(a.len(), 2);
+        assert_eq!(a[0].0, 34);
+        assert_eq!(a[0].1, 35);
+
+        assert_eq!(a[1].0, 41);
+        assert_eq!(a[1].1, 41);
+    }
+
+    #[test]
+    fn case_4() {
+        let mut transcript = standard_transcript();
+        *transcript.exons_mut()[1].cds_start_mut() = Some(25);
+        *transcript.exons_mut()[2].cds_start_mut() = Some(33);
+        *transcript.exons_mut()[2].cds_end_mut() = Some(33);
+        *transcript.exons_mut()[3].cds_end_mut() = Some(41);
+
+        *transcript.strand_mut() = Strand::Minus;
+        let a = transcript.start_codon();
+
+        assert_eq!(a.len(), 3);
+        assert_eq!(a[0].0, 25);
+        assert_eq!(a[0].1, 25);
+
+        assert_eq!(a[1].0, 33);
+        assert_eq!(a[1].1, 33);
+
+        assert_eq!(a[2].0, 41);
+        assert_eq!(a[2].1, 41);
+    }
+}
+
+#[cfg(test)]
 // TODO: Add test for negative strand
 mod test_stop_codon {
     //       1....   2....   3....   4....   5....
@@ -270,8 +356,8 @@ mod test_stop_codon {
     // 1. ---=====---===XX---XXXXX---XXUAG---=====--- >> all in one exon
     // 2. ---=====---=XXXX---XXXXX---XUAG=---=====--- >> all in one exon
     // 3. ---=====---==XXX---XXXXX---UAGX=---=====--- >> all in one exon
-    // 4. ---=====---===XX---XXXXU---AGXX=---=====--- >> split
-    // 5. ---=====---====X---XXXUA---GXXX=---=====--- >> split
+    // 4. ---=====---===XX---XXXXU---AG===---=====--- >> split
+    // 5. ---=====---====X---XXXUA---G====---=====--- >> split
     // 6. ---=====---===XU-----A-----G====---=====--- >> not really possible, but for the sake of it, let's consider it as well
 
     use super::*;

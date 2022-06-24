@@ -1,8 +1,11 @@
 use core::str::FromStr;
 use std::convert::TryFrom;
 use std::fmt;
+use std::fs::File;
 
-use crate::utils::errors::AtgError;
+use crate::fasta::FastaReader;
+use crate::models::transcript::CoordinateVector;
+use crate::utils::errors::{AtgError, FastaError};
 
 // UTF-8 encoding of all nucleotides
 const UPPERCASE_A: u8 = 0x41;
@@ -61,6 +64,17 @@ impl Nucleotide {
             Self::G => UPPERCASE_G,
             Self::T => UPPERCASE_T,
             Self::N => UPPERCASE_N,
+        }
+    }
+
+    // Returns an &str of the Nucleotide
+    pub fn to_str(self) -> &'static str {
+        match self {
+            Self::A => "A",
+            Self::C => "C",
+            Self::G => "G",
+            Self::T => "T",
+            Self::N => "N",
         }
     }
 }
@@ -134,6 +148,12 @@ impl From<&Nucleotide> for char {
             Nucleotide::T => 'T',
             Nucleotide::N => 'N',
         }
+    }
+}
+
+impl From<&Nucleotide> for u8 {
+    fn from(n: &Nucleotide) -> u8 {
+        n.to_bytes()
     }
 }
 
@@ -247,6 +267,43 @@ impl Sequence {
         Ok(seq)
     }
 
+    /// Creates a new Sequence from genomic coordinates
+    ///
+    /// Use this method if you want to have the sequenced of gapped features,
+    /// e.g. exons of a Transcript.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use atglib::fasta::FastaReader;
+    /// use atglib::models::{Sequence, Strand};
+    /// use atglib::tests::transcripts::standard_transcript;
+    ///
+    /// let tx = standard_transcript();
+    /// let coordinates = tx.cds_coordinates();
+    ///
+    /// let mut fasta_reader = FastaReader::from_file("tests/data/small.fasta").unwrap();
+    ///
+    /// let seq = Sequence::from_coordinates(&coordinates, &Strand::Plus, &mut fasta_reader).unwrap();
+    /// assert_eq!(seq.len(), 11);
+    /// ```
+    pub fn from_coordinates(
+        coordinates: &CoordinateVector,
+        strand: &crate::models::Strand,
+        fasta_reader: &mut FastaReader<File>,
+    ) -> Result<Sequence, FastaError> {
+        let capacity: u32 = coordinates.iter().map(|x| x.2 - x.1 + 1).sum();
+        let mut seq = Sequence::with_capacity(capacity as usize);
+
+        for segment in coordinates {
+            seq.append(fasta_reader.read_sequence(segment.0, segment.1.into(), segment.2.into())?)
+        }
+        if strand == &crate::models::Strand::Minus {
+            seq.reverse_complement()
+        }
+        Ok(seq)
+    }
+
     /// Returns the length of the Sequence
     /// # Examples
     ///
@@ -297,6 +354,22 @@ impl Sequence {
     pub fn push(&mut self, n: Nucleotide) -> Result<(), AtgError> {
         self.sequence.push(n);
         Ok(())
+    }
+
+    /// Clears the sequence, removing all nucleotides.
+    ///
+    /// Note that this method has no effect on the allocated capacity.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use atglib::models::{Sequence};
+    ///
+    /// let mut seq = Sequence::from_raw_bytes("AC".as_bytes(), 2).unwrap();
+    /// seq.clear();
+    /// assert_eq!(seq.len(), 0);
+    /// ```
+    pub fn clear(&mut self) {
+        self.sequence.clear()
     }
 
     /// Moves all the elements of `other` into `Self`, leaving `other` empty.
@@ -377,7 +450,7 @@ impl Sequence {
     /// ```rust
     /// use atglib::models::Sequence;
     ///
-    /// let mut seq = Sequence::from_raw_bytes("AC".as_bytes(), 2).unwrap();
+    /// let seq = Sequence::from_raw_bytes("AC".as_bytes(), 2).unwrap();
     /// assert_eq!(seq.to_bytes(), [0x41, 0x43]);
     /// ```
     pub fn to_bytes(&self) -> Vec<u8> {
@@ -393,7 +466,7 @@ impl Sequence {
     /// ```rust
     /// use atglib::models::Sequence;
     ///
-    /// let mut seq = Sequence::from_raw_bytes("AC".as_bytes(), 2).unwrap();
+    /// let seq = Sequence::from_raw_bytes("AC".as_bytes(), 2).unwrap();
     /// let mut my_string = String::new();
     /// seq.write_into_string(& mut my_string);
     /// assert_eq!(my_string, "AC");
@@ -403,6 +476,137 @@ impl Sequence {
         for c in &self.sequence {
             target.push(c.into())
         }
+    }
+
+    /// Returns an iterator over chunk_size [`crate::models::Nucleotide`]s at a time,
+    /// starting at the beginning of the Sequence.
+    ///
+    /// The chunks are slices and do not overlap. If chunk_size does not divide
+    /// the length of the slice, then the last chunk will not have length chunk_size.
+    ///
+    /// # Panics
+    /// Panics if chunk_size is 0.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use atglib::models::{Nucleotide, Sequence};
+    ///
+    /// let seq = Sequence::from_raw_bytes("ATGCTA".as_bytes(), 2).unwrap();
+    /// let mut iter = seq.chunks(3);
+    /// assert_eq!(iter.next().unwrap(), &[Nucleotide::A, Nucleotide::T, Nucleotide::G]);
+    /// assert_eq!(iter.next().unwrap(), &[Nucleotide::C, Nucleotide::T, Nucleotide::A]);
+    /// ```
+    pub fn chunks(&self, chunk_size: usize) -> std::slice::Chunks<'_, Nucleotide> {
+        self.sequence.chunks(chunk_size)
+    }
+
+    /// Returns the leftmost position of other in self
+    ///
+    /// # Panics
+    /// Panics if other is empty
+    ///
+    /// # Examples
+    /// ```rust
+    /// use atglib::models::{Nucleotide, Sequence};
+    ///
+    /// let seq = Sequence::from_raw_bytes("ATGCTA".as_bytes(), 2).unwrap();
+    /// assert_eq!(seq.position([Nucleotide::T, Nucleotide::A]), Some(4));
+    /// ```
+    pub fn position<T>(&self, other: T) -> Option<usize>
+    where
+        T: AsRef<[Nucleotide]>,
+    {
+        let query = other.as_ref();
+        assert!(
+            !query.is_empty(),
+            "empty sequence was passed to Sequence::position"
+        );
+        for (i, nuc) in self.sequence[0..self.sequence.len() - query.len() + 1]
+            .iter()
+            .enumerate()
+        {
+            if nuc == &query[0] {
+                let subsequence = &self.sequence[i..i + query.len()];
+                if subsequence == query {
+                    return Some(i);
+                }
+            }
+        }
+        None
+    }
+
+    /// Returns true if other is a subsequence of self
+    ///
+    /// # Panics
+    /// Panics if other is empty
+    ///
+    /// # Examples
+    /// ```rust
+    /// use atglib::models::{Nucleotide, Sequence};
+    ///
+    /// let seq = Sequence::from_raw_bytes("ATGCTA".as_bytes(), 2).unwrap();
+    /// assert_eq!(seq.contains([Nucleotide::T, Nucleotide::A]), true);
+    /// assert_eq!(seq.contains([Nucleotide::A, Nucleotide::A]), false);
+    /// ```
+    pub fn contains<T>(&self, other: T) -> bool
+    where
+        T: AsRef<[Nucleotide]>,
+    {
+        self.position(other).is_some()
+    }
+
+    /// # Examples
+    /// ```rust
+    /// use atglib::models::{Nucleotide, Sequence};
+    ///
+    /// let seq = Sequence::from_raw_bytes("ATGCTA".as_bytes(), 2).unwrap();
+    /// let seq_2 = Sequence::from_raw_bytes("ATGCTA".as_bytes(), 2).unwrap();
+    /// let seq_3 = Sequence::from_raw_bytes("ATG".as_bytes(), 2).unwrap();
+    ///
+    /// assert_eq!(seq.equals(&seq_2), true);
+    /// assert_eq!(seq.equals(&seq_3), false);
+    ///
+    /// assert_eq!(seq_3.equals([Nucleotide::A, Nucleotide::T, Nucleotide::G]), true);
+    /// ```
+    pub fn equals<T>(&self, other: T) -> bool
+    where
+        T: AsRef<[Nucleotide]>,
+    {
+        let query = other.as_ref();
+        if query.len() != self.len() {
+            return false;
+        }
+        for (a, b) in query.iter().zip(self.sequence.iter()) {
+            if a != b {
+                return false;
+            }
+        }
+        true
+    }
+}
+
+impl AsRef<[Nucleotide]> for Sequence {
+    fn as_ref(&self) -> &[Nucleotide] {
+        &self.sequence
+    }
+}
+
+impl From<Sequence> for Vec<u8> {
+    fn from(s: Sequence) -> Vec<u8> {
+        s.to_bytes()
+    }
+}
+
+/// implementing slice indexing operations for Sequence
+/// so that seq[1..3] operations are possible.
+impl<Idx> std::ops::Index<Idx> for Sequence
+where
+    Idx: std::slice::SliceIndex<[Nucleotide]>,
+{
+    type Output = Idx::Output;
+
+    fn index(&self, idx: Idx) -> &Self::Output {
+        &self.sequence[idx]
     }
 }
 
@@ -417,5 +621,54 @@ mod tests {
 
         assert_eq!(seq.len(), 44);
         assert_eq!(seq.to_string(), s.to_string())
+    }
+
+    #[test]
+    fn test_chunks() {
+        let s = "ATCGACGATCGATCGATGAGCGATCGACGATCGCGCTATCGCTA";
+        let seq = Sequence::from_str(&s).unwrap();
+
+        let mut iter = seq.chunks(3);
+        assert_eq!(
+            iter.next().unwrap(),
+            &[Nucleotide::A, Nucleotide::T, Nucleotide::C]
+        );
+        assert_eq!(
+            iter.next().unwrap(),
+            &[Nucleotide::G, Nucleotide::A, Nucleotide::C]
+        );
+    }
+
+    #[test]
+    fn test_contains() {
+        let s = "ATGCGA";
+        let seq = Sequence::from_str(&s).unwrap();
+
+        assert_eq!(seq.contains(vec![Nucleotide::A]), true);
+        assert_eq!(seq.contains(vec![Nucleotide::C]), true);
+        assert_eq!(seq.contains(vec![Nucleotide::G]), true);
+        assert_eq!(seq.contains(vec![Nucleotide::T]), true);
+        assert_eq!(seq.contains(vec![Nucleotide::N]), false);
+        assert_eq!(seq.contains(vec![Nucleotide::A, Nucleotide::T]), true);
+        assert_eq!(seq.contains(vec![Nucleotide::T, Nucleotide::G]), true);
+        assert_eq!(seq.contains(vec![Nucleotide::A, Nucleotide::C]), false);
+        assert_eq!(seq.contains(vec![Nucleotide::G, Nucleotide::T]), false);
+        assert_eq!(seq.contains(vec![Nucleotide::G, Nucleotide::A]), true);
+        assert_eq!(
+            seq.contains(vec![Nucleotide::C, Nucleotide::G, Nucleotide::A]),
+            true
+        );
+        assert_eq!(
+            seq.contains(vec![Nucleotide::G, Nucleotide::A, Nucleotide::C]),
+            false
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_contains_fails() {
+        let s = "ATGCGA";
+        let seq = Sequence::from_str(&s).unwrap();
+        assert_eq!(seq.contains(vec![]), true);
     }
 }

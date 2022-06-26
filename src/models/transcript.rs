@@ -334,12 +334,16 @@ impl Transcript {
 
     /// Returns the coordinates of the 5' UTR
     ///
-    /// Non-coding exons are reported fully, the 5' UTR sections of
-    /// partially-coding exons are returned as well as the coordinates
-    /// of complete non-coding exons upstream of the CDS.
+    /// The 5' UTR sections of partially-coding exons are returned
+    /// as well as the coordinates of complete non-coding exons
+    /// upstream of the CDS.
+    ///
+    /// Returns an empty vector for non-coding transcripts
     pub fn utr5_coordinates(&self) -> CoordinateVector {
-        let mut utr = self.utr_coordinates();
-        if self.is_coding() {
+        if !self.is_coding() {
+            vec![]
+        } else {
+            let mut utr = self.utr_coordinates();
             if self.forward() {
                 let start = self.cds_start().unwrap(); // cannot fail, exon is coding
                 utr.retain(|coord| coord.2 < start);
@@ -347,8 +351,8 @@ impl Transcript {
                 let end = self.cds_end().unwrap(); // cannot fail, exon is coding
                 utr.retain(|coord| coord.1 > end);
             }
+            utr
         }
-        utr
     }
 
     /// Returns the coordinates of the 3' UTR
@@ -356,9 +360,12 @@ impl Transcript {
     /// The 3' UTR sections of partially-coding exons are returned
     /// as well as the coordinates of complete non-coding exons
     /// downstream of the CDS.
+    /// Returns an empty vector for non-coding transcripts
     pub fn utr3_coordinates(&self) -> CoordinateVector {
-        let mut utr = self.utr_coordinates();
-        if self.is_coding() {
+        if !self.is_coding() {
+            vec![]
+        } else {
+            let mut utr = self.utr_coordinates();
             if self.forward() {
                 let end = self.cds_end().unwrap(); // cannot fail, exon is coding
                 utr.retain(|coord| coord.1 > end);
@@ -367,8 +374,6 @@ impl Transcript {
                 utr.retain(|coord| coord.2 < start);
             }
             utr
-        } else {
-            vec![]
         }
     }
 }

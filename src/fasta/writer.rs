@@ -6,7 +6,7 @@ use std::str::FromStr;
 use crate::fasta::FastaReader;
 use crate::models::CoordinateVector;
 use crate::models::{Sequence, Transcript, TranscriptWrite};
-use crate::utils::errors::ReadWriteError;
+use crate::utils::errors::{FastaError, ReadWriteError};
 
 /// Writes [`Transcript`]s into a `BufWriter`
 ///
@@ -42,7 +42,7 @@ use crate::utils::errors::ReadWriteError;
 /// writer.writeln_single_transcript(&transcript).unwrap();
 ///
 /// # let output = String::from_utf8(writer.into_inner().unwrap()).unwrap();
-/// # assert_eq!(output.split('\n').collect::<Vec<&str>>()[1], "AGGCCCACTCA");
+/// # assert_eq!(output.split('\n').collect::<Vec<&str>>()[1], "ATGCCCACTGA");
 /// ```
 /// This will write the Fasta data like this:
 /// ```text
@@ -65,12 +65,12 @@ use crate::utils::errors::ReadWriteError;
 /// writer.writeln_single_transcript(&transcript).unwrap();
 ///
 /// # let output = String::from_utf8(writer.into_inner().unwrap()).unwrap();
-/// # assert_eq!(output.split('\n').collect::<Vec<&str>>()[1], "CACGGGGAAATGGAGGGACTGCCCAGTAGCCTCAGGACACAGGGG");
+/// # assert_eq!(output.split('\n').collect::<Vec<&str>>()[1], "CACGGGGAAATGGATGGACTGCCCAGTAGCCTGAGGACACAGGGG");
 /// ```
 /// This will write the Fasta data like this:
 /// ```text
 /// > Test-Transcript Test-Gene
-/// CACGGGGAAATGGAGGGACTGCCCAGTAGCCTCAGGACACAGGGG
+/// CACGGGGAAATGGATGGACTGCCCAGTAGCCTGAGGACACAGGGG
 /// ```
 pub struct Writer<W: std::io::Write> {
     inner: BufWriter<W>,
@@ -191,7 +191,7 @@ impl<W: std::io::Write> Writer<W> {
     /// This will write the Fasta data like this:
     /// ```text
     /// >Test-Gene|Test-Transcript chr1:11-55
-    /// CACGGGGAAATGGAGGGACTGCCCAGTAGCCTCAGGACACAGGGG
+    /// CACGGGGAAATGGATGGACTGCCCAGTAGCCTGAGGACACAGGGG
     /// ```
     pub fn header_template(&mut self, func: fn(&Transcript) -> String) {
         self.header_template = func
@@ -238,31 +238,49 @@ impl<W: std::io::Write> Writer<W> {
     pub fn write_features(&mut self, transcript: &Transcript) -> Result<(), std::io::Error> {
         if let Some(fasta_reader) = &mut self.fasta_reader {
             let mut features: Vec<(&str, CoordinateVector)> = vec![];
-            if transcript.forward() {
-                features.push(("5UTR", transcript.utr5_coordinates()));
+
+            if transcript.is_coding() {
+                if transcript.forward() {
+                    features.push(("5UTR", transcript.utr5_coordinates()));
+                } else {
+                    features.push(("3UTR", transcript.utr3_coordinates()));
+                }
+                features.push(("CDS", transcript.cds_coordinates()));
+                if transcript.forward() {
+                    features.push(("3UTR", transcript.utr3_coordinates()));
+                } else {
+                    features.push(("5UTR", transcript.utr5_coordinates()));
+                }
             } else {
-                features.push(("3UTR", transcript.utr3_coordinates()));
-            }
-            features.push(("CDS", transcript.cds_coordinates()));
-            if transcript.forward() {
-                features.push(("3UTR", transcript.utr3_coordinates()));
-            } else {
-                features.push(("5UTR", transcript.utr5_coordinates()));
+                features.push(("ncExon", transcript.utr_coordinates()));
             }
 
+            // create a vector with all required fields
+            // that will be re-used in every iteration.
+            // Each item represents one column of the output
             let mut line: Vec<String> = vec![
                 transcript.gene().to_string(),
                 transcript.name().to_string(),
                 transcript.chrom().to_string(),
-                "START".to_string(),
-                "END".to_string(),
+                String::with_capacity(10), // start-position
+                String::with_capacity(10), // end-position
                 transcript.strand().to_string(),
-                "FEATURE".to_string(),
-                "SEQUENCE".to_string(),
+                String::with_capacity(6), // feature-type
             ];
-            for section in features {
-                // 5'UTR, CDS, 3'UTR
-                for feature in section.1 {
+
+            // the line_string is the final aggregated string that will be printed
+            // for every feature. Since we must modify some fields in the middle of
+            // the string, we first update the line vec and then write the contents
+            // into the string for byte conversion and actual output writing.
+            // A capcity of 10,000 is sufficient for most features and thus saves plenty of
+            // re-allocations when a larger line is needed.
+            let mut line_string = String::with_capacity(10000);
+            for feature_section in features {
+                // 5'UTR, CDS, 3'UTR, or ncExon
+                line[6].clear();
+                line[6].push_str(feature_section.0);
+
+                for feature in feature_section.1 {
                     let mut sequence = fasta_reader.read_sequence(
                         feature.0,
                         feature.1.into(),
@@ -274,10 +292,12 @@ impl<W: std::io::Write> Writer<W> {
                     }
                     line[3] = (feature.1 - 1).to_string(); // start
                     line[4] = feature.2.to_string(); // end
-                    line[6] = section.0.to_string();
-                    line[7] = sequence.to_string();
-                    self.inner.write_all(line.join("\t").as_bytes())?;
-                    self.inner.write_all("\n".as_bytes())?;
+                    line_string.clear();
+                    line_string.push_str(&line.join("\t"));
+                    line_string.push('\t');
+                    sequence.write_into_string(&mut line_string);
+                    line_string.push('\n');
+                    self.inner.write_all(line_string.as_bytes())?;
                 }
             }
             Ok(())
@@ -309,7 +329,7 @@ impl<W: std::io::Write> TranscriptWrite for Writer<W> {
             self.inner
                 .write_all(format!(">{}", (self.header_template)(transcript)).as_bytes())?;
 
-            let sequence = self.seq_builder.build(transcript, fasta_reader).to_bytes();
+            let sequence = self.seq_builder.build(transcript, fasta_reader)?.to_bytes();
             // ensure line breaks after x nucleotides, as per FASTA specs
             // the last line will _not_ end in a line-break
             for line in sequence.chunks(self.line_length) {
@@ -343,14 +363,11 @@ enum SequenceBuilder {
 
 impl SequenceBuilder {
     /// Builds the actual Sequence
-    ///
-    /// # Panics
-    ///
-    /// This method panics if the transcript cannot be converted to a Sequence.
-    /// This could happen when the transcript's location is out of bounds of the Fasta file,
-    /// the Fasta file becomes unavaible during the reading
-    /// or if the Fasta file contains invalid Nucleotides
-    pub fn build(&self, transcript: &Transcript, fasta_reader: &mut FastaReader<File>) -> Sequence {
+    pub fn build(
+        &self,
+        transcript: &Transcript,
+        fasta_reader: &mut FastaReader<File>,
+    ) -> Result<Sequence, FastaError> {
         let segments = match self {
             SequenceBuilder::Cds => transcript.cds_coordinates(),
             SequenceBuilder::Exons => transcript.exon_coordinates(),
@@ -361,20 +378,7 @@ impl SequenceBuilder {
             )],
         };
 
-        let capacity: u32 = segments.iter().map(|x| x.2 - x.1 + 1).sum();
-        let mut seq = Sequence::with_capacity(capacity as usize);
-
-        for segment in segments {
-            seq.append(
-                fasta_reader
-                    .read_sequence(segment.0, segment.1.into(), segment.2.into())
-                    .unwrap(), // possible panic documented in signature
-            )
-        }
-        if !transcript.forward() {
-            seq.reverse_complement()
-        }
-        seq
+        Sequence::from_coordinates(&segments, &transcript.strand(), fasta_reader)
     }
 }
 
@@ -411,7 +415,7 @@ mod tests {
         );
         assert_eq!(
             output.split('\n').collect::<Vec<&str>>()[1],
-            "CACGGTGGAGGCCCACTCAGAGGGG"
+            "CACGGTGGATGCCCACTGAGAGGGG"
         );
 
         let mut writer = Writer::new(Vec::new());
@@ -423,7 +427,7 @@ mod tests {
             output.split('\n').collect::<Vec<&str>>()[0],
             ">Test-Transcript Test-Gene"
         );
-        assert_eq!(output.split('\n').collect::<Vec<&str>>()[1], "AGGCCCACTCA");
+        assert_eq!(output.split('\n').collect::<Vec<&str>>()[1], "ATGCCCACTGA");
 
         let mut writer = Writer::new(Vec::new());
         writer.fasta_reader(FastaReader::from_file("tests/data/small.fasta").unwrap());
@@ -436,7 +440,7 @@ mod tests {
         );
         assert_eq!(
             output.split('\n').collect::<Vec<&str>>()[1],
-            "CACGGGGAAATGGAGGGACTGCCCAGTAGCCTCAGGACACAGGGG"
+            "CACGGGGAAATGGATGGACTGCCCAGTAGCCTGAGGACACAGGGG"
         );
     }
 
@@ -445,6 +449,6 @@ mod tests {
         let transcript = standard_transcript();
         let mut reader = FastaReader::from_file("tests/data/small.fasta").unwrap();
         let seq = SequenceBuilder::Cds.build(&transcript, &mut reader);
-        assert_eq!(seq.to_string(), "AGGCCCACTCA".to_string());
+        assert_eq!(seq.unwrap().to_string(), "ATGCCCACTGA".to_string());
     }
 }

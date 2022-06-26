@@ -1,5 +1,8 @@
 # Changelog
 
+# 0.1.3
+- Add QC-check module to check if transcripts make sense with a given reference genome.
+
 # 0.1.2
 - Add ncExon feature-type to the feature sequence output for exons of non-coding transcript.
 - Fix `Transcript::utr5_coordinates` to return an empty vector for non-coding transcripts, like `utr3_coordinates`.

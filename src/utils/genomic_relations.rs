@@ -79,6 +79,48 @@ pub fn union(a: (&u32, &u32), b: (&u32, &u32)) -> Option<(u32, u32)> {
     }
 }
 
+/// Combines overlapping genomic features into a single feature
+///
+/// ```text
+/// Input:
+/// --XXX-- --XXX-- --XXX-- XX-----
+/// -----XX ---X--- ----XX- -XX----
+///                         ---XXXX
+///
+/// Returns:
+/// --XXX-- --XXX-- --XXXX- XXX----
+/// -----XX                 ---XXXX
+/// ```
+///
+/// # Note:
+/// `merge` requires a sorted vector and will panic otherwise
+///
+/// # Panics:
+/// If the vector is not sorted by the left position
+pub fn merge(regions: &[(u32, u32)]) -> Vec<(u32, u32)> {
+    // TODO: Check for regions of size 0 and 1
+
+    let mut res: Vec<(u32, u32)> = Vec::with_capacity(regions.len());
+    let mut last = (regions[0].0, regions[0].1);
+
+    for region in regions {
+        if region.0 < last.0 {
+            panic!("Input regions are not sorted")
+        }
+
+        if region.0 <= last.1 {
+            // overlapping elements => merge them
+            last.1 = max(region.1, last.1)
+        } else {
+            res.push(last);
+            last = (region.0, region.1);
+        }
+    }
+    res.push(last);
+    res.shrink_to_fit();
+    res
+}
+
 /// Returns genomic features that intersect with a, but not with b
 /// If feature b overlaps a, returns None
 ///
@@ -355,5 +397,25 @@ mod test_overlap {
         assert_eq!(exon_cds_overlap(&5, &8, &8, &8), (Some(8), Some(8)));
         assert_eq!(exon_cds_overlap(&5, &8, &5, &5), (Some(5), Some(5)));
         assert_eq!(exon_cds_overlap(&5, &8, &6, &6), (Some(6), Some(6)));
+    }
+}
+
+#[cfg(test)]
+mod test_merge {
+    use super::*;
+
+    #[test]
+    fn test_merge() {
+        assert_eq!(merge(&[(5, 8), (6, 10)]), [(5, 10)]);
+
+        assert_eq!(merge(&[(3, 5), (6, 7)]), [(3, 5), (6, 7)]);
+
+        assert_eq!(merge(&[(3, 5), (4, 4)]), [(3, 5)]);
+
+        assert_eq!(merge(&[(3, 5), (5, 6)]), [(3, 6)]);
+
+        assert_eq!(merge(&[(1, 2), (2, 3), (4, 7)]), [(1, 3), (4, 7)]);
+
+        assert_eq!(merge(&[(1, 2), (2, 3), (5, 7)]), [(1, 3), (5, 7)]);
     }
 }

@@ -12,6 +12,7 @@ pub mod gtf;
 pub mod models;
 pub mod qc;
 pub mod refgene;
+pub mod spliceai;
 pub mod tests;
 pub mod utils;
 

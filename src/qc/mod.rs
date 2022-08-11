@@ -60,8 +60,8 @@
 //! Alternatively, every test can be run in isolation as well. This should only rarely be used
 //! as it is less efficient due to a high IO-volume when reading the fasta reference genome
 //! sequence for every test separately.
-//! 
-//! 
+//!
+//!
 //! # Limitations
 //! The QC checks are opinionated and assume a standard genetic code with 3-nucleotide codons and the standard
 //! start and stop codons.

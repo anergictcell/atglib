@@ -192,6 +192,13 @@ impl Transcripts {
     pub fn to_vec(self) -> Vec<Transcript> {
         self.list
     }
+
+    /// Returns a vector with the gene symbols of all transcripts
+    pub fn genes(&self) -> Vec<&str> {
+        // this `map` looks weird, but I don't know another way
+        // to return a slice insteadt of &String
+        self.gene.keys().map(|x| x.as_str()).collect()
+    }
 }
 
 impl Default for Transcripts {

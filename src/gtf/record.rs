@@ -660,3 +660,20 @@ mod tests {
         assert_eq!(res.1, "NM_001354751.2");
     }
 }
+
+#[cfg(all(test, feature = "with-bench"))]
+mod bench {
+    use super::*;
+    use test::Bencher;
+
+    #[bench]
+    fn benchmark_attribute_parsing(b: &mut Bencher) {
+        let attributes = std::fs::read_to_string("tests/data/attributes.txt").unwrap();
+
+        b.iter(|| {
+            for line in attributes.lines() {
+                assert!(parse_attributes(line).is_ok());
+            }
+        })
+    }
+}

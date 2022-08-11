@@ -285,10 +285,7 @@ fn parse_attributes(mut attrs: &str) -> Result<(&str, &str), ParseGtfError> {
         }
         attrs = attrs[(idx + 1)..].trim();
     }
-    Err(ParseGtfError::new(format!(
-        "Missing gene_id or transcript_id\n>>>{}<<<",
-        attrs
-    )))
+    Err(ParseGtfError::new("Missing gene_id or transcript_id"))
 }
 
 fn parse_attribute(attr: &str) -> Result<(&str, &str), ParseGtfError> {

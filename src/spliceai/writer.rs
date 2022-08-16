@@ -27,9 +27,9 @@ const HEADER: &str = "#NAME\tCHROM\tSTRAND\tTX_START\tTX_END\tEXON_START\tEXON_E
 ///
 /// assert_eq!(
 /// writer.into_inner().unwrap(), // this is our actual output
-/// r#"#NAME	CHROM	STRAND	TX_START	TX_END	EXON_START	EXON_END
-/// Test-Gene	chr1	+	11	55	11,21,31,41,51,	15,25,35,45,55,
-/// "#.as_bytes()
+/// b"#NAME\tCHROM\tSTRAND\tTX_START\tTX_END\tEXON_START\tEXON_END
+/// Test-Gene\tchr1\t+\t11\t55\t11,21,31,41,51,\t15,25,35,45,55,
+/// "
 /// );
 /// ```
 pub struct Writer<W: std::io::Write> {
@@ -329,14 +329,14 @@ mod test_spliceailine {
         // The `Transcripts` hashmap does not guarantee identical order of iterating
         // the genes. So we must test both possible orders of Test-Gene and Test-Gene2
 
-        let test1 = written_output ==
-            format!(
+        let test1 = written_output
+            == format!(
                 "#NAME\tCHROM\tSTRAND\tTX_START\tTX_END\tEXON_START\tEXON_END\n{}\n{}\n",
                 expected_output1, expected_output2
             );
-        
-        let test2 = written_output ==
-            format!(
+
+        let test2 = written_output
+            == format!(
                 "#NAME\tCHROM\tSTRAND\tTX_START\tTX_END\tEXON_START\tEXON_END\n{}\n{}\n",
                 expected_output2, expected_output1
             );

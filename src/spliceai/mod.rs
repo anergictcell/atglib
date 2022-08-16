@@ -18,7 +18,6 @@
 //! Merged         ----OOOOOO----OOOO----OOOO--OOOOOOOO---OOOO
 //! ```
 
-
 mod writer;
 
 pub use crate::spliceai::writer::Writer;

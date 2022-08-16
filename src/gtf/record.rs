@@ -8,7 +8,7 @@ use crate::models::{Exon, Frame, Strand};
 use crate::utils::errors::ParseGtfError;
 
 /// Describes the actual feature type (Exon, CDS, etc) of [`GtfRecord`]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum GtfFeature {
     Exon,
     CDS,

@@ -23,7 +23,7 @@ const LF: u8 = 0xa;
 const CR: u8 = 0xd;
 
 /// Nucleotide is a single DNA nucleotide (A C G T N)
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Nucleotide {
     A,
     C,

@@ -1,3 +1,7 @@
+[![Build](https://github.com/anergictcell/atglib/actions/workflows/test_repo.yml/badge.svg)](https://github.com/anergictcell/atglib/actions/workflows/test_repo.yml)
+[![crates.io](https://img.shields.io/crates/v/atglib?color=#3fb911)](https://crates.io/crates/atg)
+[![doc-rs](https://img.shields.io/docsrs/atglib/latest)](https://docs.rs/atglib/latest/atglib/)
+
 # ATGlib
 
 _ATGlib_ is a Rust library to work with genomic transcript data. It handles several file formats, such as GTF, GenePred(ext) and Refgene. You can generate bed files, fasta sequences or custom feature sequences.

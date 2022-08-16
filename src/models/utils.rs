@@ -11,7 +11,7 @@ use crate::utils::errors::ReadWriteError;
 ///
 /// This is used by RefGene and inferred in GTF based
 /// on the absence or presence of dedicated Start- & Stop codon records.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum CdsStat {
     None,
     Unknown,
@@ -62,7 +62,7 @@ impl FromStr for CdsStat {
 /// let strand = Strand::from_str("+").unwrap();
 /// assert_eq!(strand, Strand::Plus);
 /// ```
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Strand {
     Plus,
     Minus,

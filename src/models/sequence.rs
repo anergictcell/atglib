@@ -19,6 +19,13 @@ const LOWERCASE_G: u8 = 0x67;
 const LOWERCASE_T: u8 = 0x74;
 const LOWERCASE_N: u8 = 0x64;
 
+// NCBI based byte representation of nucleotides
+// <https://www.ncbi.nlm.nih.gov/IEB/ToolBox/SDKDOCS/SEQFEAT.HTML>
+const NCBI_T: u8 = 0u8;
+const NCBI_C: u8 = 1u8;
+const NCBI_A: u8 = 2u8;
+const NCBI_G: u8 = 3u8;
+
 const LF: u8 = 0xa;
 const CR: u8 = 0xd;
 
@@ -77,6 +84,21 @@ impl Nucleotide {
             Self::N => "N",
         }
     }
+
+    /// TODO
+    /// Uses the offset as defined by [NCBI](https://www.ncbi.nlm.nih.gov/IEB/ToolBox/SDKDOCS/SEQFEAT.HTML)
+    ///`where T=0, C=1, A=2, G=3`
+    /// # Panics
+    /// On an "N" nucleotide
+    pub fn as_ncbi_int(&self) -> Result<usize, AtgError> {
+        match self {
+            Nucleotide::A => Ok(2),
+            Nucleotide::C => Ok(1),
+            Nucleotide::G => Ok(3),
+            Nucleotide::T => Ok(0),
+            Nucleotide::N => Err(AtgError::new("N nucleotides cannot be converted to `int`")),
+        }
+    }
 }
 
 impl FromStr for Nucleotide {
@@ -124,17 +146,77 @@ impl TryFrom<&char> for Nucleotide {
     }
 }
 
+/// Create a `Nucleotide` from the `u8` representation of the
+/// nucleotide letter (`A`, `C`, `G`, `T`) (lower and upper case).
+/// In addition, Nucleotides can also be derived from the [NCBI-based
+/// integer representation](https://www.ncbi.nlm.nih.gov/IEB/ToolBox/SDKDOCS/SEQFEAT.HTML)
+/// T=0, C=1, A=2, G=3
+///
+/// This trait implementation is not completely correct in that it returns `Error` when a
+/// line feed character is used as `u8` input. Invalid input causes a panic.
+///
+/// # Note
+/// This conversion should only be used if you are sure that the input data is correct
+/// and can be converted to `Nucleotide`.
 impl TryFrom<&u8> for Nucleotide {
     type Error = AtgError;
+    /// The `u8` must be a valid ASCII representation of the `Nucleotide` or
+    /// the NCBI-based integer representation.
+    /// Newline and Control-Feed characters return an `AtgError`
+    ///
+    /// # Panics
+    /// If a Nucleotide cannot be derived from the input paramater
     fn try_from(b: &u8) -> Result<Nucleotide, AtgError> {
         match b {
-            &LOWERCASE_A | &UPPERCASE_A => Ok(Self::A),
-            &LOWERCASE_C | &UPPERCASE_C => Ok(Self::C),
-            &LOWERCASE_G | &UPPERCASE_G => Ok(Self::G),
-            &LOWERCASE_T | &UPPERCASE_T => Ok(Self::T),
+            &LOWERCASE_A | &UPPERCASE_A | &NCBI_A => Ok(Self::A),
+            &LOWERCASE_C | &UPPERCASE_C | &NCBI_C => Ok(Self::C),
+            &LOWERCASE_G | &UPPERCASE_G | &NCBI_G => Ok(Self::G),
+            &LOWERCASE_T | &UPPERCASE_T | &NCBI_T => Ok(Self::T),
             &LOWERCASE_N | &UPPERCASE_N => Ok(Self::N),
             &LF | &CR => Err(AtgError::new("newline")),
             _ => panic!("invalid nucleotide {}", b),
+        }
+    }
+}
+
+/// Create a `Nucleotide` from the `u8` representation of the
+/// nucleotide letter (`A`, `C`, `G`, `T`) (lower and upper case).
+/// In addition, Nucleotides can also be derived from the [NCBI-based
+/// integer representation](https://www.ncbi.nlm.nih.gov/IEB/ToolBox/SDKDOCS/SEQFEAT.HTML)
+/// T=0, C=1, A=2, G=3
+///
+/// This trait implementation is not completely correct in that it returns `Error` when a
+/// line feed character is used as `u8` input. Invalid input causes a panic.
+///
+/// # Note
+/// This conversion should only be used if you are sure that the input data is correct
+/// and can be converted to `Nucleotide`.
+impl TryFrom<u8> for Nucleotide {
+    type Error = AtgError;
+    /// The `u8` must be a valid ASCII representation of the `Nucleotide` or
+    /// the NCBI-based integer representation.
+    /// Newline and Control-Feed characters return an `AtgError`
+    ///
+    /// # Panics
+    /// If a Nucleotide cannot be derived from the input paramater
+    fn try_from(b: u8) -> Result<Nucleotide, AtgError> {
+        match b {
+            LOWERCASE_A | UPPERCASE_A | NCBI_A => Ok(Self::A),
+            LOWERCASE_C | UPPERCASE_C | NCBI_C => Ok(Self::C),
+            LOWERCASE_G | UPPERCASE_G | NCBI_G => Ok(Self::G),
+            LOWERCASE_T | UPPERCASE_T | NCBI_T => Ok(Self::T),
+            LOWERCASE_N | UPPERCASE_N => Ok(Self::N),
+            LF | CR => Err(AtgError::new("newline")),
+            _ => panic!("invalid nucleotide {}", b),
+        }
+    }
+}
+
+impl From<usize> for Nucleotide {
+    fn from(b: usize) -> Nucleotide {
+        match Nucleotide::try_from(b as u8) {
+            Ok(nt) => nt,
+            _ => Self::N,
         }
     }
 }
@@ -160,7 +242,7 @@ impl From<&Nucleotide> for u8 {
 /// A DNA sequence consisting of Nucleotides.
 ///
 /// It provides some utility methods, like
-///[`reverse_complement`](`Sequence::reverse_complement`)
+/// [`reverse_complement`](`Sequence::reverse_complement`)
 pub struct Sequence {
     sequence: Vec<Nucleotide>,
 }

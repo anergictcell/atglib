@@ -4,6 +4,7 @@
 mod codon;
 mod exon;
 mod frame;
+mod genetic_code;
 mod sequence;
 mod transcript;
 mod transcripts;
@@ -12,12 +13,18 @@ mod utils;
 pub use crate::models::codon::Codon;
 pub use crate::models::exon::Exon;
 pub use crate::models::frame::Frame;
+pub use crate::models::genetic_code::GeneticCode;
 pub use crate::models::sequence::{Nucleotide, Sequence};
 pub use crate::models::transcript::{Coordinate, CoordinateVector, Transcript, TranscriptBuilder};
 pub use crate::models::transcripts::Transcripts;
 pub use crate::models::utils::{CdsStat, Strand, TranscriptRead, TranscriptWrite};
 
-pub const START_CODON: [sequence::Nucleotide; 3] = [Nucleotide::A, Nucleotide::T, Nucleotide::G];
+const fn start_codons() -> [sequence::Nucleotide; 3] {
+    [Nucleotide::A, Nucleotide::T, Nucleotide::G]
+}
+
+pub const START_CODON: [sequence::Nucleotide; 3] = start_codons();
+
 pub const STOP_CODONS: [[sequence::Nucleotide; 3]; 3] = [
     [Nucleotide::T, Nucleotide::A, Nucleotide::G],
     [Nucleotide::T, Nucleotide::A, Nucleotide::A],

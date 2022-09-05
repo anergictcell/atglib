@@ -201,7 +201,7 @@ impl FastaReader<File> {
     /// let mut reader = FastaReader::from_file("tests/data/small.fasta").unwrap();
     ///
     /// // read the nucleotide at position 150 of chromosome 5
-    /// let seq = reader.read_sequence("chr5", 150, 150).unwrap();
+    /// let seq = reader.read_sequence("chrM", 150, 150).unwrap();
     /// assert_eq!(&seq.to_string(), "G");
     ///
     /// // read the first 10 nucleotides of chromosome 1
@@ -298,7 +298,7 @@ mod tests {
         );
 
         assert_eq!(
-            fai.offset("chr5", 151).unwrap_err().to_string(),
+            fai.offset("chrM", 151).unwrap_err().to_string(),
             "position 151 is greater than chromome length 150".to_string()
         );
     }
@@ -327,16 +327,16 @@ mod tests {
         let seq = fasta.read_sequence("chr4", 148, 149).unwrap();
         assert_eq!(&seq.to_string(), "TA");
 
-        let seq = fasta.read_sequence("chr5", 101, 150).unwrap();
+        let seq = fasta.read_sequence("chrM", 101, 150).unwrap();
         assert_eq!(
             &seq.to_string(),
             "TGACCTGCAGGGTCGAGGAGTTGACGGTGCTGAGTTCCCTGCACTCTCAG"
         );
 
-        let seq = fasta.read_sequence("chr5", 150, 150).unwrap();
+        let seq = fasta.read_sequence("chrM", 150, 150).unwrap();
         assert_eq!(&seq.to_string(), "G");
 
-        let seq = fasta.read_sequence("chr5", 1, 150).unwrap();
+        let seq = fasta.read_sequence("chrM", 1, 150).unwrap();
         assert_eq!(seq.len(), 150);
     }
 }

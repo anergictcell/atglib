@@ -2,6 +2,8 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 
+use log::debug;
+
 use crate::fasta::FastaReader;
 use crate::models::{GeneticCode, Transcript, TranscriptWrite};
 use crate::qc::QcCheck;
@@ -91,7 +93,7 @@ impl<W: std::io::Write> Writer<W> {
     ///
     /// By default, the standard genetic code is used for translating to AminoAcids
     ///
-    pub fn default_genetic_code_mut(&mut self, code: GeneticCode) {
+    pub fn default_genetic_code(&mut self, code: GeneticCode) {
         self.genetic_code = code
     }
 
@@ -211,6 +213,7 @@ impl<W: std::io::Write> TranscriptWrite for Writer<W> {
         if let Some(alts) = &self.alternative_genetic_codes {
             for (chrom, chrom_code) in alts {
                 if chrom == transcript.chrom() {
+                    debug!("Using custom genetic code {} for {} on {}", chrom_code, transcript.name(), chrom);
                     code = chrom_code;
                     break;
                 }
@@ -301,7 +304,7 @@ mod tests {
         let output = Vec::new();
         let mut writer = Writer::new(output);
         writer.fasta_reader(FastaReader::from_file("tests/data/small.fasta").unwrap());
-        writer.default_genetic_code_mut(GeneticCode::vertebrate_mitochondria());
+        writer.default_genetic_code(GeneticCode::vertebrate_mitochondria());
         writer.writeln_single_transcript(&tx).unwrap();
         writer.writeln_single_transcript(&mito_tx).unwrap();
         let written_output = String::from_utf8(writer.into_inner().unwrap()).unwrap();

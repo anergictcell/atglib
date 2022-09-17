@@ -1,168 +1,36 @@
-// The genetic code is stored in an array with 64 elements (one for each triplet)
-// There is one standard implementation and several variants. Variants only overwrite
-// the specific differences they have compared to the standard code.
-// The lookup occurs through defined calculations:
-// A => positions 0-15
-// C => posisions 16-31
-// G => positions 32-47
-// T => positions 48-63
-// https://www.ncbi.nlm.nih.gov/IEB/ToolBox/SDKDOCS/SEQFEAT.HTML
+use std::fmt;
 
-use std::{convert::TryFrom, fmt::Display};
-
-pub use crate::models::sequence::Nucleotide;
+use crate::models::sequence::Nucleotide;
 use crate::utils::errors::AtgError;
+use crate::models::AminoAcid;
 
+
+/// The genetic code lookup table is an Array with 64 amino acids
+/// The lookup occurs through defined calculations:
+/// T => positions 0-15
+/// C => posisions 16-31
+/// A => positions 32-47
+/// G => positions 48-63
+/// https://www.ncbi.nlm.nih.gov/IEB/ToolBox/SDKDOCS/SEQFEAT.HTML
 type GeneticCodeLookup = [AminoAcid; 64];
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum AminoAcid {
-    Ter,
-    A,
-    C,
-    D,
-    E,
-    F,
-    G,
-    H,
-    I,
-    K,
-    L,
-    M,
-    N,
-    P,
-    Q,
-    R,
-    S,
-    T,
-    V,
-    W,
-    Y,
-}
-
-impl AminoAcid {
-    pub fn single_letter(&self) -> char {
-        match self {
-            AminoAcid::A => 'A',
-            AminoAcid::C => 'C',
-            AminoAcid::D => 'D',
-            AminoAcid::E => 'E',
-            AminoAcid::F => 'F',
-            AminoAcid::G => 'G',
-            AminoAcid::H => 'H',
-            AminoAcid::I => 'I',
-            AminoAcid::K => 'K',
-            AminoAcid::L => 'L',
-            AminoAcid::M => 'M',
-            AminoAcid::N => 'N',
-            AminoAcid::P => 'P',
-            AminoAcid::Q => 'Q',
-            AminoAcid::R => 'R',
-            AminoAcid::S => 'S',
-            AminoAcid::T => 'T',
-            AminoAcid::V => 'V',
-            AminoAcid::W => 'W',
-            AminoAcid::Y => 'Y',
-            AminoAcid::Ter => '*',
-        }
-    }
-}
-
-impl AsRef<str> for AminoAcid {
-    fn as_ref(&self) -> &str {
-        match self {
-            AminoAcid::A => "Ala",
-            AminoAcid::C => "Cys",
-            AminoAcid::D => "Asp",
-            AminoAcid::E => "Glu",
-            AminoAcid::F => "Phe",
-            AminoAcid::G => "Gly",
-            AminoAcid::H => "His",
-            AminoAcid::I => "Ile",
-            AminoAcid::K => "Lys",
-            AminoAcid::L => "Leu",
-            AminoAcid::M => "Met",
-            AminoAcid::N => "Asn",
-            AminoAcid::P => "Pro",
-            AminoAcid::Q => "Gln",
-            AminoAcid::R => "Arg",
-            AminoAcid::S => "Ser",
-            AminoAcid::T => "Thr",
-            AminoAcid::V => "Val",
-            AminoAcid::W => "Trp",
-            AminoAcid::Y => "Tyr",
-            AminoAcid::Ter => "Ter",
-        }
-    }
-}
-
-impl Display for AminoAcid {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.as_ref())
-    }
-}
-
-impl TryFrom<char> for AminoAcid {
-    type Error = AtgError;
-    fn try_from(s: char) -> Result<AminoAcid, AtgError> {
-        match s {
-            'A' => Ok(AminoAcid::A),
-            'C' => Ok(AminoAcid::C),
-            'D' => Ok(AminoAcid::D),
-            'E' => Ok(AminoAcid::E),
-            'F' => Ok(AminoAcid::F),
-            'G' => Ok(AminoAcid::G),
-            'H' => Ok(AminoAcid::H),
-            'I' => Ok(AminoAcid::I),
-            'K' => Ok(AminoAcid::K),
-            'L' => Ok(AminoAcid::L),
-            'M' => Ok(AminoAcid::M),
-            'N' => Ok(AminoAcid::N),
-            'P' => Ok(AminoAcid::P),
-            'Q' => Ok(AminoAcid::Q),
-            'R' => Ok(AminoAcid::R),
-            'S' => Ok(AminoAcid::S),
-            'T' => Ok(AminoAcid::T),
-            'V' => Ok(AminoAcid::V),
-            'W' => Ok(AminoAcid::W),
-            'Y' => Ok(AminoAcid::Y),
-            '*' => Ok(AminoAcid::Ter),
-            _ => Err(AtgError::new("Invalid amino acid")),
-        }
-    }
-}
-
-impl TryFrom<&str> for AminoAcid {
-    type Error = AtgError;
-    fn try_from(s: &str) -> Result<AminoAcid, AtgError> {
-        match s {
-            "A" | "Ala" => Ok(AminoAcid::A),
-            "C" | "Cys" => Ok(AminoAcid::C),
-            "D" | "Asp" => Ok(AminoAcid::D),
-            "E" | "Glu" => Ok(AminoAcid::E),
-            "F" | "Phe" => Ok(AminoAcid::F),
-            "G" | "Gly" => Ok(AminoAcid::G),
-            "H" | "His" => Ok(AminoAcid::H),
-            "I" | "Ile" => Ok(AminoAcid::I),
-            "K" | "Lys" => Ok(AminoAcid::K),
-            "L" | "Leu" => Ok(AminoAcid::L),
-            "M" | "Met" => Ok(AminoAcid::M),
-            "N" | "Asn" => Ok(AminoAcid::N),
-            "P" | "Pro" => Ok(AminoAcid::P),
-            "Q" | "Gln" => Ok(AminoAcid::Q),
-            "R" | "Arg" => Ok(AminoAcid::R),
-            "S" | "Ser" => Ok(AminoAcid::S),
-            "T" | "Thr" => Ok(AminoAcid::T),
-            "V" | "Val" => Ok(AminoAcid::V),
-            "W" | "Trp" => Ok(AminoAcid::W),
-            "Y" | "Tyr" => Ok(AminoAcid::Y),
-            "Ter" | "*" | "Stop" => Ok(AminoAcid::Ter),
-            _ => Err(AtgError::new("Invalid amino acid")),
-        }
-    }
-}
 
 /// The genetic code is basically a lookup table from DNA codons to AminoAcids
+///
+/// # Note
+/// The genetic code does not support alternative start codons. *ATGlib* considers only `ATG` as start codon.
+///
+/// # Examples
+/// ```
+/// use atglib::models::{AminoAcid, GeneticCode, Nucleotide};
+/// let code = GeneticCode::default();
+/// assert_eq!(
+///     code.translate(&[Nucleotide::A, Nucleotide::T, Nucleotide::G])
+///         .unwrap(),
+///     AminoAcid::M
+/// );
+/// ```
+#[derive(Debug)]
 pub struct GeneticCode {
     code: GeneticCodeLookup,
 }
@@ -181,8 +49,72 @@ impl Default for GeneticCode {
     }
 }
 
+impl PartialEq for GeneticCode {
+    fn eq(&self, other: &Self) -> bool {
+        self.code == other.code
+    }
+}
+impl Eq for GeneticCode {}
+
+
+impl fmt::Display for GeneticCode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.code.iter().map(|aa| aa.single_letter()).collect::<String>())
+    }
+}
+
 impl GeneticCode {
+    /// Creates a new, custom genetic code
+    ///
+    /// The aa_table must be the amino acid translation for each possible codon, in the same order
+    /// as the [NCBI genetic code tables](https://www.ncbi.nlm.nih.gov/IEB/ToolBox/C_DOC/lxr/source/data/gc.prt)
+    ///
+    /// The genetic code translation is provided as an array with 64 elements (one for each codon)
+    /// # Examples
+    /// ```
+    /// use atglib::models::{AminoAcid, GeneticCode, Nucleotide};
+    /// // use the genetic code table for `Yeast Mitochondrial`
+    /// let code = GeneticCode::new("FFLLSSSSYY**CCWWTTTTPPPPHHQQRRRRIIMMTTTTNNKKSSRRVVVVAAAADDEEGGGG").unwrap();
+    /// assert_eq!(
+    ///     code.translate(&[Nucleotide::T, Nucleotide::G, Nucleotide::A])
+    ///         .unwrap(),
+    ///     AminoAcid::W
+    /// );
+    /// ```
+    pub fn new(aa_table: &str) -> Result<GeneticCode, AtgError> {
+        if aa_table.len() != 64 {
+            return Err(AtgError::new("aa_table has wrong length. 64 amino acids are required"))
+        }
+
+        let allowed_chars = "*ACDEFGHIKLMNPQRSTVWY";
+
+        for letter in aa_table.chars() {
+            if !allowed_chars.contains(letter) {
+                return Err(AtgError::new(format!("Invalid amino acid {}", letter)))
+            }
+        }
+        Ok(GeneticCode {
+            code: aa_table
+                .chars()
+                .map(|c| c.try_into().unwrap()) // cannot fail
+                .collect::<Vec<AminoAcid>>()
+                .try_into()
+                .unwrap(), // cannot fail
+        })
+    }
+
     /// Creates the genetic code of [vertrebrate mitochondria](https://en.wikipedia.org/wiki/Vertebrate_mitochondrial_code)
+    ///
+    /// # Examples
+    /// ```
+    /// use atglib::models::{AminoAcid, GeneticCode, Nucleotide};
+    /// let code = GeneticCode::vertebrate_mitochondria();
+    /// assert_eq!(
+    ///     code.translate(&[Nucleotide::A, Nucleotide::G, Nucleotide::A])
+    ///         .unwrap(),
+    ///     AminoAcid::Ter
+    /// );
+    /// ```
     pub fn vertebrate_mitochondria() -> GeneticCode {
         GeneticCode {
             code: "FFLLSSSSYY**CCWWLLLLPPPPHHQQRRRRIIMMTTTTNNKKSS**VVVVAAAADDEEGGGG"
@@ -194,9 +126,52 @@ impl GeneticCode {
         }
     }
 
-    /// Translates a codon into an AminoAcid
+    /// Tries to create a genetic code from either a known code or from the provided lookup
+    ///
+    /// This method can be used as a helper function for user-facing applications where users
+    /// can provide either the name of the code to use (e.g. `vertebrate_mitochondria`) or provide the
+    /// actual lookup table (e.g. `FFLLSSSSYY**CCWWTTTTPPPPHHQQRRRRIIMMTTTTNNKKSSRRVVVVAAAADDEEGGGG`)
+    ///
+    /// # Examples
+    /// ```
+    /// use atglib::models::{AminoAcid, GeneticCode, Nucleotide};
+    /// 
+    /// assert_eq!(
+    ///     GeneticCode::vertebrate_mitochondria(),
+    ///     GeneticCode::guess("vertebrate_mitochondria").unwrap()
+    /// );
+    ///
+    /// assert_eq!(
+    ///     GeneticCode::vertebrate_mitochondria(),
+    ///     GeneticCode::guess("FFLLSSSSYY**CCWWLLLLPPPPHHQQRRRRIIMMTTTTNNKKSS**VVVVAAAADDEEGGGG").unwrap()
+    /// );
+    /// ```
+    pub fn guess(code: &str) -> Result<GeneticCode, AtgError> {
+        match code {
+            "standard" | "default" => Ok(GeneticCode::default()),
+            "vertebrate_mitochondria" => Ok(GeneticCode::vertebrate_mitochondria()),
+            _ => match GeneticCode::new(code) {
+                Ok(code) => Ok(code),
+                Err(_) => Err(AtgError::new("Genetic code not known or invalid"))
+            }
+        }
+    }
+
+
+    /// Translates a provided codon into an AminoAcid
     ///
     /// If the codon contains an `N` nucleotide, the method will return `AtgError`
+    ///
+    /// # Examples
+    /// ```
+    /// use atglib::models::{AminoAcid, GeneticCode, Nucleotide};
+    /// let code = GeneticCode::default();
+    /// let aa = code.translate(&[Nucleotide::A, Nucleotide::T, Nucleotide::G]).unwrap();
+    /// assert_eq!(
+    ///     aa,
+    ///     AminoAcid::M
+    /// );
+    /// ```
     pub fn translate(&self, codon: &[Nucleotide; 3]) -> Result<AminoAcid, AtgError> {
         let first_offset = codon[0].as_ncbi_int()? * 16;
         let second_offset = codon[1].as_ncbi_int()? * 4;
@@ -204,7 +179,18 @@ impl GeneticCode {
         Ok(self.code[first_offset + second_offset + third_offset])
     }
 
-    /// Returns a vector of all codons that code for the AminoAcid
+    /// Returns a vector of all codons that code for the provided AminoAcid
+    ///
+    /// # Examples
+    /// ```
+    /// use atglib::models::{AminoAcid, GeneticCode, Nucleotide};
+    /// let code = GeneticCode::default();
+    /// let codons = code.reverse_lookup(&AminoAcid::M);
+    /// assert_eq!(
+    ///     codons[0],
+    ///     [Nucleotide::A, Nucleotide::T, Nucleotide::G]
+    /// );
+    /// ```
     pub fn reverse_lookup(&self, aa: &AminoAcid) -> Vec<[Nucleotide; 3]> {
         self.code
             .iter()
@@ -225,13 +211,28 @@ impl GeneticCode {
     }
 
     /// Returns all possible Stop codons
+    ///
+    /// # Examples
+    /// ```
+    /// use atglib::models::{AminoAcid, GeneticCode, Nucleotide};
+    /// let code = GeneticCode::default();
+    /// let codons = code.stop_codons();
+    /// assert!(codons.contains(&[Nucleotide::T, Nucleotide::A, Nucleotide::A]));
+    /// ```
     pub fn stop_codons(&self) -> Vec<[Nucleotide; 3]> {
         self.reverse_lookup(&AminoAcid::Ter)
     }
 
-    /// Returns true if the codon is a stop codon
+    /// Returns true if the provided codon is a stop codon
     ///
     /// This method can only handle codons with exaccly 3 nucleotides. All other input will return `false`
+    ///
+    /// # Examples
+    /// ```
+    /// use atglib::models::{AminoAcid, GeneticCode, Nucleotide};
+    /// let code = GeneticCode::default();
+    /// assert!(code.is_stop_codon(&[Nucleotide::T, Nucleotide::A, Nucleotide::A]));
+    /// ```
     pub fn is_stop_codon(&self, codon: &[Nucleotide]) -> bool {
         if codon.len() != 3 {
             return false;
@@ -241,6 +242,15 @@ impl GeneticCode {
             self.translate(&[codon[0], codon[1], codon[2]]),
             Ok(AminoAcid::Ter)
         )
+    }
+
+
+    /// Returns `true` if the codon is a start codon
+    ///
+    /// This method considers only the canonical `ATG` start codon and does
+    /// not include non-standard start codons
+    pub fn is_start_codon(codon: &[Nucleotide]) -> bool {
+        codon == [Nucleotide::A, Nucleotide::T, Nucleotide::G]
     }
 }
 
@@ -312,5 +322,21 @@ mod tests {
         assert!(mito_ter.contains(&[Nucleotide::A, Nucleotide::G, Nucleotide::G]));
 
         assert!(!mito_ter.contains(&[Nucleotide::T, Nucleotide::G, Nucleotide::A]));
+    }
+
+    #[test]
+    fn test_start_codon() {
+        let seq = vec![
+            Nucleotide::C,
+            Nucleotide::A,
+            Nucleotide::T,
+            Nucleotide::G,
+            Nucleotide::T
+        ];
+        assert!(GeneticCode::is_start_codon(&[Nucleotide::A, Nucleotide::T, Nucleotide::G]));
+        assert!(GeneticCode::is_start_codon(&seq[1..4]));
+        assert!(!GeneticCode::is_start_codon(&seq[0..3]));
+        assert!(!GeneticCode::is_start_codon(&seq[1..5]));
+        assert!(!GeneticCode::is_start_codon(&seq));
     }
 }

@@ -77,7 +77,7 @@ mod writer;
 use std::fs::File;
 
 use crate::fasta::FastaReader;
-use crate::models::{CoordinateVector, GeneticCode, Sequence, Transcript, START_CODON};
+use crate::models::{CoordinateVector, GeneticCode, Sequence, Transcript};
 use crate::utils::errors::FastaError;
 
 pub use writer::Writer;
@@ -510,7 +510,7 @@ fn starts_with_start_codon(cds: &Sequence) -> bool {
     if cds.len() < 3 {
         return false;
     }
-    is_start_codon(&cds[0..3])
+    GeneticCode::is_start_codon(&cds[0..3])
 }
 
 fn ends_with_stop_codon(cds: &Sequence, code: &GeneticCode) -> bool {
@@ -528,16 +528,13 @@ fn extra_start_codon(seq: &Sequence) -> bool {
     }
     for idx in 0..seq.len() - 2 {
         let codon = &seq[idx..idx + 3];
-        if is_start_codon(codon) {
+        if GeneticCode::is_start_codon(codon) {
             return true;
         }
     }
     false
 }
 
-fn is_start_codon(codon: &[crate::models::Nucleotide]) -> bool {
-    codon == START_CODON
-}
 
 #[cfg(test)]
 mod test {

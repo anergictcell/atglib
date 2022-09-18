@@ -76,10 +76,7 @@ struct FastaIndex {
 
 impl FastaIndex {
     /// Crates a new [`FastaIndex`] by parsing the fai file
-    pub fn new<P: AsRef<Path> + std::fmt::Display>(filename: P) -> FastaResult<Self> {
-        let mut idx = Self {
-            chromosomes: HashMap::new(),
-        };
+    pub fn from_file<P: AsRef<Path> + std::fmt::Display>(filename: P) -> FastaResult<Self> {
         let content = match read_to_string(&filename) {
             Ok(x) => x,
             Err(err) => {
@@ -89,6 +86,21 @@ impl FastaIndex {
                 )))
             }
         };
+        Self::from_str(&content)
+    }
+
+    /// Crates a new [`FastaIndex`] from a `Reader`
+    pub fn from_reader<R: std::io::Read>(mut reader: R) -> FastaResult<Self> {
+        let mut content = String::new();
+        reader.read_to_string(&mut content)?;
+        Self::from_str(&content)
+    }
+
+    fn from_str(content: &str) -> FastaResult<Self> {
+        let mut idx = Self {
+            chromosomes: HashMap::new(),
+        };
+
         for line in content.lines() {
             let chrom = ChromosomeIndex::new(line)?;
             idx.chromosomes.insert(chrom.name().to_string(), chrom);
@@ -167,6 +179,68 @@ impl FastaReader<File> {
         Self::new(path, fai_path)
     }
 
+    /// Creates a `FastaReader` by specifying both fasta and fai file
+    ///
+    /// Use this method if the fasta-index file (fai) does not follow standard
+    /// naming conventions. In most cases, you want to use
+    /// [`from_file`](`FastaReader::from_file`) instead.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use atglib;
+    /// use atglib::fasta::FastaReader;
+    /// let mut reader = FastaReader::new("tests/data/small.fasta", "tests/data/small.fasta.fai").unwrap();
+    /// let seq = reader.read_sequence("chr1", 1, 10).unwrap();
+    /// assert_eq!(&seq.to_string(), "GCCTCAGAGG");
+    /// ```
+    pub fn new<P: AsRef<Path> + std::fmt::Display, P2: AsRef<Path> + std::fmt::Display>(
+        fasta_path: P,
+        fai_path: P2,
+    ) -> FastaResult<Self> {
+        let reader = match File::open(fasta_path.as_ref()) {
+            Ok(x) => x,
+            Err(err) => {
+                return Err(FastaError::new(format!(
+                    "unable to open fasta file {}: {}",
+                    fasta_path, err
+                )))
+            }
+        };
+        Ok(FastaReader {
+            inner: BufReader::new(reader),
+            idx: FastaIndex::from_file(fai_path)?,
+        })
+    }
+}
+
+impl<R: std::io::Read + std::io::Seek> FastaReader<R> {
+    /// Creates a `FastaReader` from `Reader` instaces for the Fasta file and the Fasta index
+    ///
+    /// Use this method if both fasta and index are not files on the file system, but e.g. HTTP streams etc.
+    /// If you have normal files, you want to use
+    /// [`from_file`](`FastaReader::from_file`) instead.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::fs::File;
+    /// use atglib;
+    /// use atglib::fasta::FastaReader;
+    /// let mut fasta = File::open("tests/data/small.fasta").unwrap();
+    /// let mut index = File::open("tests/data/small.fasta.fai").unwrap();
+    ///
+    /// let mut reader = FastaReader::from_reader(fasta, index).unwrap();
+    /// let seq = reader.read_sequence("chr1", 1, 10).unwrap();
+    /// assert_eq!(&seq.to_string(), "GCCTCAGAGG");
+    /// ```
+    pub fn from_reader<R2: std::io::Read>(fasta_reader: R, fai_reader: R2) -> FastaResult<Self> {
+        Ok(FastaReader {
+            inner: BufReader::new(fasta_reader),
+            idx: FastaIndex::from_reader(fai_reader)?,
+        })
+    }
+
     /// Returns the raw-bytes of the Fasta file for the genomic range
     ///
     /// Reads from the FastaReader and returns the raw bytes
@@ -216,40 +290,6 @@ impl FastaReader<File> {
         let length = usize::try_from(end - start)?;
         Ok(Sequence::from_raw_bytes(&raw_bytes, length)?)
     }
-
-    /// Creates a `FastaReader` by specifying both fasta and fai file
-    ///
-    /// Use this method if the fasta-index file (fai) does not follow standard
-    /// naming conventions. In most cases, you want to use
-    /// [`from_file`](`FastaReader::from_file`) instead.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use atglib;
-    /// use atglib::fasta::FastaReader;
-    /// let mut reader = FastaReader::new("tests/data/small.fasta", "tests/data/small.fasta.fai").unwrap();
-    /// let seq = reader.read_sequence("chr1", 1, 10).unwrap();
-    /// assert_eq!(&seq.to_string(), "GCCTCAGAGG");
-    /// ```
-    pub fn new<P: AsRef<Path> + std::fmt::Display, P2: AsRef<Path> + std::fmt::Display>(
-        fasta_path: P,
-        fai_path: P2,
-    ) -> FastaResult<Self> {
-        let reader = match File::open(fasta_path.as_ref()) {
-            Ok(x) => x,
-            Err(err) => {
-                return Err(FastaError::new(format!(
-                    "unable to open fasta file {}: {}",
-                    fasta_path, err
-                )))
-            }
-        };
-        Ok(FastaReader {
-            inner: BufReader::new(reader),
-            idx: FastaIndex::new(fai_path)?,
-        })
-    }
 }
 
 #[cfg(test)]
@@ -257,7 +297,7 @@ mod tests {
     use super::*;
     #[test]
     fn test_fai_reading() {
-        let fai = FastaIndex::new("tests/data/small.fasta.fai").unwrap();
+        let fai = FastaIndex::from_file("tests/data/small.fasta.fai").unwrap();
         assert_eq!(fai.offset("chr1", 1).unwrap(), 6);
         assert_eq!(fai.offset("chr1", 50).unwrap(), 55);
         assert_eq!(fai.offset("chr1", 51).unwrap(), 57);
@@ -271,7 +311,7 @@ mod tests {
 
     #[test]
     fn test_fai_errors() {
-        let fai = FastaIndex::new("tests/data/small.fasta.fai").unwrap();
+        let fai = FastaIndex::from_file("tests/data/small.fasta.fai").unwrap();
         assert_eq!(
             fai.offset("chr6", 1).unwrap_err().to_string(),
             "index for chr6 does not exist".to_string()

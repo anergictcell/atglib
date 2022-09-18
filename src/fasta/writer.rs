@@ -72,15 +72,15 @@ use crate::utils::errors::{FastaError, ReadWriteError};
 /// > Test-Transcript Test-Gene
 /// CACGGGGAAATGGATGGACTGCCCAGTAGCCTGAGGACACAGGGG
 /// ```
-pub struct Writer<W: std::io::Write> {
+pub struct Writer<W: std::io::Write, R: std::io::Read + std::io::Seek> {
     inner: BufWriter<W>,
     seq_builder: SequenceBuilder,
-    fasta_reader: Option<FastaReader<File>>,
+    fasta_reader: Option<FastaReader<R>>,
     line_length: usize,
     header_template: fn(&Transcript) -> String,
 }
 
-impl Writer<File> {
+impl<R: std::io::Read + std::io::Seek> Writer<File, R> {
     /// Creates a new Writer to write into a file
     pub fn from_file<P: AsRef<Path> + std::fmt::Display>(path: P) -> Result<Self, ReadWriteError> {
         match File::create(path.as_ref()) {
@@ -93,7 +93,7 @@ impl Writer<File> {
     }
 }
 
-impl<W: std::io::Write> Writer<W> {
+impl<W: std::io::Write, R: std::io::Read + std::io::Seek> Writer<W, R> {
     /// Creates a new generic Writer for any `std::io::Read`` object
     ///
     /// Use this method when you want to write to stdout or
@@ -133,7 +133,7 @@ impl<W: std::io::Write> Writer<W> {
     /// // specify the reference genome fasta file
     /// writer.fasta_reader(FastaReader::from_file("tests/data/small.fasta").unwrap());
     /// ```
-    pub fn fasta_reader(&mut self, r: FastaReader<File>) {
+    pub fn fasta_reader(&mut self, r: FastaReader<R>) {
         self.fasta_reader = Some(r)
     }
 
@@ -310,7 +310,7 @@ impl<W: std::io::Write> Writer<W> {
     }
 }
 
-impl<W: std::io::Write> TranscriptWrite for Writer<W> {
+impl<W: std::io::Write, R: std::io::Read + std::io::Seek> TranscriptWrite for Writer<W, R> {
     /// Writes a single transcript FASTA sequence with an extra newline
     ///
     /// This method adds an extra newline at the end of the row
@@ -363,10 +363,10 @@ enum SequenceBuilder {
 
 impl SequenceBuilder {
     /// Builds the actual Sequence
-    pub fn build(
+    pub fn build<R: std::io::Read + std::io::Seek>(
         &self,
         transcript: &Transcript,
-        fasta_reader: &mut FastaReader<File>,
+        fasta_reader: &mut FastaReader<R>,
     ) -> Result<Sequence, FastaError> {
         let segments = match self {
             SequenceBuilder::Cds => transcript.cds_coordinates(),

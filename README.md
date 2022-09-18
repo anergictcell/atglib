@@ -81,6 +81,8 @@ When it comes to functional correctness, I try my best to test the functionality
 - [ ] Parallelize input parsing
 - [ ] Check if exons can be stored in smaller vec
 - [ ] Use std::mem::replace to move out of attributes, e.g. in TranscriptBuilder and remove Copy/Clone traits <https://stackoverflow.com/questions/31307680/how-to-move-one-field-out-of-a-struct-that-implements-drop-trait>
+- [ ] Change `Codon` to `GenomicCodon`
+- [ ] Update error handling and streamling error types
 
 ## Known issues
 ### GTF parsing

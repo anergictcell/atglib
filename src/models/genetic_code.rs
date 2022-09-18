@@ -1,9 +1,8 @@
 use std::fmt;
 
 use crate::models::sequence::Nucleotide;
-use crate::utils::errors::AtgError;
 use crate::models::AminoAcid;
-
+use crate::utils::errors::AtgError;
 
 /// The genetic code lookup table is an Array with 64 amino acids
 /// The lookup occurs through defined calculations:
@@ -13,7 +12,6 @@ use crate::models::AminoAcid;
 /// G => positions 48-63
 /// https://www.ncbi.nlm.nih.gov/IEB/ToolBox/SDKDOCS/SEQFEAT.HTML
 type GeneticCodeLookup = [AminoAcid; 64];
-
 
 /// The genetic code is basically a lookup table from DNA codons to AminoAcids
 ///
@@ -56,10 +54,16 @@ impl PartialEq for GeneticCode {
 }
 impl Eq for GeneticCode {}
 
-
 impl fmt::Display for GeneticCode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.code.iter().map(|aa| aa.single_letter()).collect::<String>())
+        write!(
+            f,
+            "{}",
+            self.code
+                .iter()
+                .map(|aa| aa.single_letter())
+                .collect::<String>()
+        )
     }
 }
 
@@ -83,14 +87,16 @@ impl GeneticCode {
     /// ```
     pub fn new(aa_table: &str) -> Result<GeneticCode, AtgError> {
         if aa_table.len() != 64 {
-            return Err(AtgError::new("aa_table has wrong length. 64 amino acids are required"))
+            return Err(AtgError::new(
+                "aa_table has wrong length. 64 amino acids are required",
+            ));
         }
 
         let allowed_chars = "*ACDEFGHIKLMNPQRSTVWY";
 
         for letter in aa_table.chars() {
             if !allowed_chars.contains(letter) {
-                return Err(AtgError::new(format!("Invalid amino acid {}", letter)))
+                return Err(AtgError::new(format!("Invalid amino acid {}", letter)));
             }
         }
         Ok(GeneticCode {
@@ -103,27 +109,33 @@ impl GeneticCode {
         })
     }
 
-    /// Creates the genetic code of [vertrebrate mitochondria](https://en.wikipedia.org/wiki/Vertebrate_mitochondrial_code)
+    /// Creates the genetic code of [vertrebrate mitochondrial](https://en.wikipedia.org/wiki/Vertebrate_mitochondrial_code)
     ///
     /// # Examples
     /// ```
     /// use atglib::models::{AminoAcid, GeneticCode, Nucleotide};
-    /// let code = GeneticCode::vertebrate_mitochondria();
+    /// let code = GeneticCode::vertebrate_mitochondrial();
     /// assert_eq!(
     ///     code.translate(&[Nucleotide::A, Nucleotide::G, Nucleotide::A])
     ///         .unwrap(),
     ///     AminoAcid::Ter
     /// );
     /// ```
-    pub fn vertebrate_mitochondria() -> GeneticCode {
-        GeneticCode {
-            code: "FFLLSSSSYY**CCWWLLLLPPPPHHQQRRRRIIMMTTTTNNKKSS**VVVVAAAADDEEGGGG"
-                .chars()
-                .map(|c| c.try_into().unwrap()) // cannot fail
-                .collect::<Vec<AminoAcid>>()
-                .try_into()
-                .unwrap(), // cannot fail
-        }
+    pub fn vertebrate_mitochondrial() -> GeneticCode {
+        GeneticCode::new("FFLLSSSSYY**CCWWLLLLPPPPHHQQRRRRIIMMTTTTNNKKSS**VVVVAAAADDEEGGGG")
+            .unwrap()
+    }
+
+    /// Creates the genetic code of [yeast mitochondrial](https://en.wikipedia.org/wiki/Yeast_mitochondrial_code)
+    pub fn yeast_mitochondrial() -> GeneticCode {
+        GeneticCode::new("FFLLSSSSYY**CCWWTTTTPPPPHHQQRRRRIIMMTTTTNNKKSSRRVVVVAAAADDEEGGGG")
+            .unwrap()
+    }
+
+    /// Creates the genetic code of [invertebrate mitochondrial](https://en.wikipedia.org/wiki/Invertebrate_mitochondrial_code)
+    pub fn invertebrate_mitochondrial() -> GeneticCode {
+        GeneticCode::new("FFLLSSSSYY**CCWWTTTTPPPPHHQQRRRRIIMMTTTTNNKKSSRRVVVVAAAADDEEGGGG")
+            .unwrap()
     }
 
     /// Tries to create a genetic code from either a known code or from the provided lookup
@@ -132,31 +144,74 @@ impl GeneticCode {
     /// can provide either the name of the code to use (e.g. `vertebrate_mitochondria`) or provide the
     /// actual lookup table (e.g. `FFLLSSSSYY**CCWWTTTTPPPPHHQQRRRRIIMMTTTTNNKKSSRRVVVVAAAADDEEGGGG`)
     ///
+    /// The names are based on the `name` field from the [NCBI specs](https://www.ncbi.nlm.nih.gov/IEB/ToolBox/C_DOC/lxr/source/data/gc.prt)
+    /// but all lowercase characters. For example `"Mold Mitochondrial; Protozoan Mitochondrial; Coelenterate Mitochondrial; Mycoplasma; Spiroplasma"`
+    /// ```text
+    /// ...
+    /// {
+    /// name "Mold Mitochondrial; Protozoan Mitochondrial; Coelenterate Mitochondrial; Mycoplasma; Spiroplasma" ,
+    /// name "SGC3" ,
+    /// id 4 ,
+    /// ncbieaa  "FFLLSSSSYY**CCWWLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG",
+    /// sncbieaa "--MM------**-------M------------MMMM---------------M------------"
+    /// -- Base1  TTTTTTTTTTTTTTTTCCCCCCCCCCCCCCCCAAAAAAAAAAAAAAAAGGGGGGGGGGGGGGGG
+    /// -- Base2  TTTTCCCCAAAAGGGGTTTTCCCCAAAAGGGGTTTTCCCCAAAAGGGGTTTTCCCCAAAAGGGG
+    /// -- Base3  TCAGTCAGTCAGTCAGTCAGTCAGTCAGTCAGTCAGTCAGTCAGTCAGTCAGTCAGTCAGTCAG
+    /// },
+    /// ...
+    /// ```
+    /// can be called as `GeneticCode::guess("mold mitochondrial; protozoan mitochondrial; coelenterate mitochondrial; mycoplasma; spiroplasma")`
+    /// or `GeneticCode::guess("sgc3")`
+    ///
     /// # Examples
     /// ```
-    /// use atglib::models::{AminoAcid, GeneticCode, Nucleotide};
-    /// 
+    /// use atglib::models::GeneticCode;
+    ///
     /// assert_eq!(
-    ///     GeneticCode::vertebrate_mitochondria(),
-    ///     GeneticCode::guess("vertebrate_mitochondria").unwrap()
+    ///     GeneticCode::vertebrate_mitochondrial(),
+    ///     GeneticCode::guess("vertebrate mitochondrial").unwrap()
     /// );
     ///
     /// assert_eq!(
-    ///     GeneticCode::vertebrate_mitochondria(),
+    ///     GeneticCode::vertebrate_mitochondrial(),
     ///     GeneticCode::guess("FFLLSSSSYY**CCWWLLLLPPPPHHQQRRRRIIMMTTTTNNKKSS**VVVVAAAADDEEGGGG").unwrap()
     /// );
     /// ```
     pub fn guess(code: &str) -> Result<GeneticCode, AtgError> {
         match code {
-            "standard" | "default" => Ok(GeneticCode::default()),
-            "vertebrate_mitochondria" => Ok(GeneticCode::vertebrate_mitochondria()),
+            "standard" | "default" | "sgc0" => Ok(GeneticCode::default()),
+            "vertebrate mitochondrial" | "sgc1" => Ok(GeneticCode::vertebrate_mitochondrial()),
+            "yeast mitochondrial" | "sgc2" => Ok(GeneticCode::yeast_mitochondrial()),
+            "mold mitochondrial; protozoan mitochondrial; coelenterate mitochondrial; mycoplasma; spiroplasma" | "sgc3" => GeneticCode::new("FFLLSSSSYY**CCWWLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG"),
+            "invertebrate_mitochondrial" | "sgc4" => Ok(GeneticCode::invertebrate_mitochondrial()),
+            "ciliate nuclear; dasycladacean nuclear; hexamita nuclear" | "sgc5" => GeneticCode::new("FFLLSSSSYYQQCC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG"),
+            "echinoderm mitochondrial; flatworm mitochondrial" | "sgc8" => GeneticCode::new("FFLLSSSSYY**CCWWLLLLPPPPHHQQRRRRIIIMTTTTNNNKSSSSVVVVAAAADDEEGGGG"),
+            "euplotid nuclear" | "sgc9" => GeneticCode::new("FFLLSSSSYY**CCCWLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG"),
+            "bacterial, archaeal and plant plastid" => GeneticCode::new("FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG"),
+            "alternative yeast nuclear" => GeneticCode::new("FFLLSSSSYY**CC*WLLLSPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG"),
+            "ascidian mitochondrial" => GeneticCode::new("FFLLSSSSYY**CCWWLLLLPPPPHHQQRRRRIIMMTTTTNNKKSSGGVVVVAAAADDEEGGGG"),
+            "alternative flatworm mitochondrial" => GeneticCode::new("FFLLSSSSYYY*CCWWLLLLPPPPHHQQRRRRIIIMTTTTNNNKSSSSVVVVAAAADDEEGGGG"),
+            "blepharisma macronuclear" => GeneticCode::new("FFLLSSSSYY*QCC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG"),
+            "chlorophycean mitochondrial" => GeneticCode::new("FFLLSSSSYY*LCC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG"),
+            "trematode mitochondrial" => GeneticCode::new("FFLLSSSSYY**CCWWLLLLPPPPHHQQRRRRIIMMTTTTNNNKSSSSVVVVAAAADDEEGGGG"),
+            "scenedesmus obliquus mitochondrial" => GeneticCode::new("FFLLSS*SYY*LCC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG"),
+            "thraustochytrium mitochondrial" => GeneticCode::new("FF*LSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG"),
+            "rhabdopleuridae mitochondrial" => GeneticCode::new("FFLLSSSSYY**CCWWLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSSKVVVVAAAADDEEGGGG"),
+            "candidate division sr1 and gracilibacteria" => GeneticCode::new("FFLLSSSSYY**CCGWLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG"),
+            "pachysolen tannophilus nuclear" => GeneticCode::new("FFLLSSSSYY**CC*WLLLAPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG"),
+            "karyorelict nuclear" => GeneticCode::new("FFLLSSSSYYQQCCWWLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG"),
+            "condylostoma nuclear" => GeneticCode::new("FFLLSSSSYYQQCCWWLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG"),
+            "mesodinium nuclear" => GeneticCode::new("FFLLSSSSYYYYCC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG"),
+            "peritrich nuclear" => GeneticCode::new("FFLLSSSSYYEECC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG"),
+            "blastocrithidia nuclear" => GeneticCode::new("FFLLSSSSYYEECCWWLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG"),
+            "balanophoraceae plastid" => GeneticCode::new("FFLLSSSSYY*WCC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG"),
+            "cephalodiscidae mitochondrial" => GeneticCode::new("FFLLSSSSYYY*CCWWLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSSKVVVVAAAADDEEGGGG"),
             _ => match GeneticCode::new(code) {
                 Ok(code) => Ok(code),
-                Err(_) => Err(AtgError::new("Genetic code not known or invalid"))
-            }
+                Err(_) => Err(AtgError::new("Genetic code not known or invalid")),
+            },
         }
     }
-
 
     /// Translates a provided codon into an AminoAcid
     ///
@@ -167,10 +222,7 @@ impl GeneticCode {
     /// use atglib::models::{AminoAcid, GeneticCode, Nucleotide};
     /// let code = GeneticCode::default();
     /// let aa = code.translate(&[Nucleotide::A, Nucleotide::T, Nucleotide::G]).unwrap();
-    /// assert_eq!(
-    ///     aa,
-    ///     AminoAcid::M
-    /// );
+    /// assert_eq!(aa, AminoAcid::M);
     /// ```
     pub fn translate(&self, codon: &[Nucleotide; 3]) -> Result<AminoAcid, AtgError> {
         let first_offset = codon[0].as_ncbi_int()? * 16;
@@ -202,9 +254,9 @@ impl GeneticCode {
                 // `remainder` cannot be larger than 15: `pos2` must be 0 <= 3
                 let (pos2, pos3) = (remainder / 4, remainder % 4);
                 [
-                    Nucleotide::from(pos1), // cannot fail, due to 0 <= pos <= 3 conditions, described above
-                    Nucleotide::from(pos2), // cannot fail, due to 0 <= pos <= 3 conditions, described above
-                    Nucleotide::from(pos3), // cannot fail, due to 0 <= pos <= 3 conditions, described above
+                    Nucleotide::try_from(pos1 as u8).unwrap(), // cannot fail, due to 0 <= pos <= 3 conditions, described above
+                    Nucleotide::try_from(pos2 as u8).unwrap(), // cannot fail, due to 0 <= pos <= 3 conditions, described above
+                    Nucleotide::try_from(pos3 as u8).unwrap(), // cannot fail, due to 0 <= pos <= 3 conditions, described above
                 ]
             })
             .collect::<Vec<[Nucleotide; 3]>>()
@@ -214,7 +266,7 @@ impl GeneticCode {
     ///
     /// # Examples
     /// ```
-    /// use atglib::models::{AminoAcid, GeneticCode, Nucleotide};
+    /// use atglib::models::{GeneticCode, Nucleotide};
     /// let code = GeneticCode::default();
     /// let codons = code.stop_codons();
     /// assert!(codons.contains(&[Nucleotide::T, Nucleotide::A, Nucleotide::A]));
@@ -229,7 +281,7 @@ impl GeneticCode {
     ///
     /// # Examples
     /// ```
-    /// use atglib::models::{AminoAcid, GeneticCode, Nucleotide};
+    /// use atglib::models::{GeneticCode, Nucleotide};
     /// let code = GeneticCode::default();
     /// assert!(code.is_stop_codon(&[Nucleotide::T, Nucleotide::A, Nucleotide::A]));
     /// ```
@@ -244,11 +296,16 @@ impl GeneticCode {
         )
     }
 
-
     /// Returns `true` if the codon is a start codon
     ///
     /// This method considers only the canonical `ATG` start codon and does
     /// not include non-standard start codons
+    ///
+    /// # Examples
+    /// ```
+    /// use atglib::models::{GeneticCode, Nucleotide};
+    /// assert!(GeneticCode::is_start_codon(&[Nucleotide::A, Nucleotide::T, Nucleotide::G]));
+    /// ```
     pub fn is_start_codon(codon: &[Nucleotide]) -> bool {
         codon == [Nucleotide::A, Nucleotide::T, Nucleotide::G]
     }
@@ -313,7 +370,7 @@ mod tests {
 
     #[test]
     fn test_mito_stop_codon() {
-        let mito_code = GeneticCode::vertebrate_mitochondria();
+        let mito_code = GeneticCode::vertebrate_mitochondrial();
         let mito_ter = mito_code.stop_codons();
         assert_eq!(mito_ter.len(), 4);
         assert!(mito_ter.contains(&[Nucleotide::T, Nucleotide::A, Nucleotide::A]));
@@ -331,9 +388,13 @@ mod tests {
             Nucleotide::A,
             Nucleotide::T,
             Nucleotide::G,
-            Nucleotide::T
+            Nucleotide::T,
         ];
-        assert!(GeneticCode::is_start_codon(&[Nucleotide::A, Nucleotide::T, Nucleotide::G]));
+        assert!(GeneticCode::is_start_codon(&[
+            Nucleotide::A,
+            Nucleotide::T,
+            Nucleotide::G,
+        ]));
         assert!(GeneticCode::is_start_codon(&seq[1..4]));
         assert!(!GeneticCode::is_start_codon(&seq[0..3]));
         assert!(!GeneticCode::is_start_codon(&seq[1..5]));

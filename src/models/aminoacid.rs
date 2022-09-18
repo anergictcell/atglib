@@ -2,7 +2,6 @@ use core::fmt::Display;
 
 use crate::utils::errors::AtgError;
 
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 /// Enum of all standard amino acids
 ///
@@ -55,7 +54,7 @@ pub enum AminoAcid {
 impl AminoAcid {
     /// Returns the single-letter code of the `AminoAcid`
     ///
-    /// # Example
+    /// # Examples
     /// ```
     /// use atglib::models::AminoAcid;
     /// let aa = AminoAcid::M;

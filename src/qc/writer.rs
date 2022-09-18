@@ -103,7 +103,7 @@ impl<W: std::io::Write> Writer<W> {
     /// the `vertebrate_mitochondria` genetic code for all transcripts on the mitochondrial
     /// chromsome.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```rust
     /// use atglib::qc::Writer;
@@ -115,7 +115,7 @@ impl<W: std::io::Write> Writer<W> {
     /// // specify the reference genome fasta file
     /// writer.fasta_reader(FastaReader::from_file("tests/data/small.fasta").unwrap());
     /// // use vertebrate_mitochondria genetic code for chrM transcripts
-    /// writer.add_genetic_code("chrM".to_string(), GeneticCode::vertebrate_mitochondria());
+    /// writer.add_genetic_code("chrM".to_string(), GeneticCode::vertebrate_mitochondrial());
     ///
     /// let codes = writer.genetic_codes();
     /// assert_eq!(codes[0].0, "*");
@@ -131,7 +131,7 @@ impl<W: std::io::Write> Writer<W> {
     /// additional genetic codes. If you have use-cases where you need many different genetic codes
     /// it would be better to split your `Transcripts` beforehand.
     ///
-    /// It is optimized for vertebrate genomes (i.e. standard code + vertebrate mitochondria code)
+    /// It is optimized for vertebrate genomes (i.e. standard code + vertebrate mitochondrial code)
     pub fn add_genetic_code(&mut self, chrom: String, code: GeneticCode) {
         if self.alternative_genetic_codes.is_none() {
             self.alternative_genetic_codes = Some(Vec::new());
@@ -213,7 +213,12 @@ impl<W: std::io::Write> TranscriptWrite for Writer<W> {
         if let Some(alts) = &self.alternative_genetic_codes {
             for (chrom, chrom_code) in alts {
                 if chrom == transcript.chrom() {
-                    debug!("Using custom genetic code {} for {} on {}", chrom_code, transcript.name(), chrom);
+                    debug!(
+                        "Using custom genetic code {} for {} on {}",
+                        chrom_code,
+                        transcript.name(),
+                        chrom
+                    );
                     code = chrom_code;
                     break;
                 }
@@ -238,7 +243,7 @@ mod tests {
         let mut writer = Writer::new(output);
         writer.fasta_reader(FastaReader::from_file("tests/data/small.fasta").unwrap());
         // use vertebrate_mitochondria genetic code for chrM transcripts
-        writer.add_genetic_code("chrM".to_string(), GeneticCode::vertebrate_mitochondria());
+        writer.add_genetic_code("chrM".to_string(), GeneticCode::vertebrate_mitochondrial());
         let codes = writer.genetic_codes();
         assert_eq!(codes[0].0, "*");
         assert_eq!(codes[1].0, "chrM");
@@ -291,7 +296,7 @@ mod tests {
         let output = Vec::new();
         let mut writer = Writer::new(output);
         writer.fasta_reader(FastaReader::from_file("tests/data/small.fasta").unwrap());
-        writer.add_genetic_code("chrM".to_string(), GeneticCode::vertebrate_mitochondria());
+        writer.add_genetic_code("chrM".to_string(), GeneticCode::vertebrate_mitochondrial());
         writer.writeln_single_transcript(&tx).unwrap();
         writer.writeln_single_transcript(&mito_tx).unwrap();
         let written_output = String::from_utf8(writer.into_inner().unwrap()).unwrap();
@@ -304,7 +309,7 @@ mod tests {
         let output = Vec::new();
         let mut writer = Writer::new(output);
         writer.fasta_reader(FastaReader::from_file("tests/data/small.fasta").unwrap());
-        writer.default_genetic_code(GeneticCode::vertebrate_mitochondria());
+        writer.default_genetic_code(GeneticCode::vertebrate_mitochondrial());
         writer.writeln_single_transcript(&tx).unwrap();
         writer.writeln_single_transcript(&mito_tx).unwrap();
         let written_output = String::from_utf8(writer.into_inner().unwrap()).unwrap();

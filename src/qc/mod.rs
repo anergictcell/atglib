@@ -535,7 +535,6 @@ fn extra_start_codon(seq: &Sequence) -> bool {
     false
 }
 
-
 #[cfg(test)]
 mod test {
     use super::*;

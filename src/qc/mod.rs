@@ -66,8 +66,7 @@
 //!
 //!
 //! # Limitations
-//! The QC checks are opinionated and assume a standard genetic code with 3-nucleotide codons and the standard
-//! start and stop codons.
+//! The QC checks are opinionated and assume the standard start codons `ATG`.
 //! If you have use-cases for alternative options, please get in touch with me (open an issue on Github). I'm happy to improve
 //! the functionality when needed. I would actually be excited to learn about such non-standard use-cases and implement them.
 //!

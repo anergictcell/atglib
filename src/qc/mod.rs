@@ -23,12 +23,15 @@
 //! use atglib::tests::transcripts::standard_transcript;
 //! use atglib::fasta::FastaReader;
 //! use atglib::qc::{QcCheck, QcResult};
+//! use atglib::models::GeneticCode;
 //!
 //! let tx = standard_transcript();
 //!
 //! let mut fasta_reader = FastaReader::from_file("tests/data/small.fasta").unwrap();
 //!
-//! let qc = QcCheck::new(&tx, &mut fasta_reader);
+//! let code = GeneticCode::default();
+//!
+//! let qc = QcCheck::new(&tx, &mut fasta_reader, &code);
 //! assert_eq!(qc.correct_start_codon(), QcResult::OK)
 //! ```
 //!
@@ -63,8 +66,7 @@
 //!
 //!
 //! # Limitations
-//! The QC checks are opinionated and assume a standard genetic code with 3-nucleotide codons and the standard
-//! start and stop codons.
+//! The QC checks are opinionated and assume the standard start codons `ATG`.
 //! If you have use-cases for alternative options, please get in touch with me (open an issue on Github). I'm happy to improve
 //! the functionality when needed. I would actually be excited to learn about such non-standard use-cases and implement them.
 //!
@@ -74,7 +76,7 @@ mod writer;
 use std::fs::File;
 
 use crate::fasta::FastaReader;
-use crate::models::{CoordinateVector, Sequence, Transcript, START_CODON, STOP_CODONS};
+use crate::models::{CoordinateVector, GeneticCode, Sequence, Transcript};
 use crate::utils::errors::FastaError;
 
 pub use writer::Writer;
@@ -133,12 +135,15 @@ impl From<Option<bool>> for QcResult {
 /// use atglib::tests::transcripts::standard_transcript;
 /// use atglib::fasta::FastaReader;
 /// use atglib::qc::{QcCheck, QcResult};
+/// use atglib::models::GeneticCode;
 ///
 /// let tx = standard_transcript();
 ///
 /// let mut fasta_reader = FastaReader::from_file("tests/data/small.fasta").unwrap();
 ///
-/// let qc = QcCheck::new(&tx, &mut fasta_reader);
+/// let code = GeneticCode::default();
+///
+/// let qc = QcCheck::new(&tx, &mut fasta_reader, &code);
 /// assert_eq!(qc.correct_start_codon(), QcResult::OK)
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -191,15 +196,17 @@ impl QcCheck {
     /// use atglib::tests::transcripts::standard_transcript;
     /// use atglib::fasta::FastaReader;
     /// use atglib::qc::{QcCheck, QcResult};
+    /// use atglib::models::GeneticCode;
     ///
     /// let tx = standard_transcript();
     ///
     /// let mut fasta_reader = FastaReader::from_file("tests/data/small.fasta").unwrap();
+    /// let code = GeneticCode::default();
     ///
-    /// let qc = QcCheck::new(&tx, &mut fasta_reader);
+    /// let qc = QcCheck::new(&tx, &mut fasta_reader, &code);
     /// assert_eq!(qc.correct_start_codon(), QcResult::OK)
     /// ```
-    pub fn new(transcript: &Transcript, fasta: &mut FastaReader<File>) -> Self {
+    pub fn new(transcript: &Transcript, fasta: &mut FastaReader<File>, code: &GeneticCode) -> Self {
         let mut res = QcCheck::default();
 
         let seq = match Sequence::from_coordinates(
@@ -219,7 +226,7 @@ impl QcCheck {
         res.correct_coordinates = QcResult::OK;
         res.exon = contains_exon(transcript).into();
         if transcript.is_coding() {
-            res.check_cds(transcript, &seq);
+            res.check_cds(transcript, &seq, code);
         };
 
         let coords = if transcript.is_coding() {
@@ -269,12 +276,12 @@ impl QcCheck {
         self.correct_coordinates
     }
 
-    fn check_cds(&mut self, transcript: &Transcript, seq: &Sequence) {
+    fn check_cds(&mut self, transcript: &Transcript, seq: &Sequence, code: &GeneticCode) {
         self.cds_len = correct_cds_length(transcript).into();
         self.correct_start = starts_with_start_codon(seq).into();
-        self.correct_stop = ends_with_stop_codon(seq).into();
+        self.correct_stop = ends_with_stop_codon(seq, code).into();
 
-        self.upstream_stop = match early_stop_codon(seq) {
+        self.upstream_stop = match early_stop_codon(seq, code) {
             false => QcResult::OK,
             true => QcResult::NOK,
         };
@@ -386,6 +393,7 @@ pub fn correct_start_codon(
 pub fn correct_stop_codon(
     transcript: &Transcript,
     fasta: &mut FastaReader<File>,
+    code: &GeneticCode,
 ) -> Result<Option<bool>, FastaError> {
     let coords = transcript.stop_codon();
 
@@ -410,7 +418,7 @@ pub fn correct_stop_codon(
     if !transcript.forward() {
         seq.reverse_complement();
     }
-    Ok(Some(ends_with_stop_codon(&seq)))
+    Ok(Some(ends_with_stop_codon(&seq, code)))
 }
 
 /// Checks if the transcript is coding and the CDS
@@ -424,13 +432,14 @@ pub fn correct_stop_codon(
 pub fn no_upstream_stop_codon(
     transcript: &Transcript,
     fasta: &mut FastaReader<File>,
+    code: &GeneticCode,
 ) -> Result<Option<bool>, FastaError> {
     if !transcript.is_coding() {
         return Ok(None);
     }
     let seq =
         Sequence::from_coordinates(&transcript.cds_coordinates(), &transcript.strand(), fasta)?;
-    if early_stop_codon(&seq) {
+    if early_stop_codon(&seq, code) {
         Ok(Some(false))
     } else {
         Ok(Some(true))
@@ -487,9 +496,9 @@ pub fn no_start_codon(
 
 /// checks if any (except for the last) in-frame codon of the sequence
 /// is a stop codon
-fn early_stop_codon(seq: &Sequence) -> bool {
+fn early_stop_codon(seq: &Sequence, code: &GeneticCode) -> bool {
     for codon in seq[0..seq.len() - 3].chunks(3) {
-        if is_stop_codon(codon) {
+        if code.is_stop_codon(codon) {
             return true;
         }
     }
@@ -500,14 +509,14 @@ fn starts_with_start_codon(cds: &Sequence) -> bool {
     if cds.len() < 3 {
         return false;
     }
-    is_start_codon(&cds[0..3])
+    GeneticCode::is_start_codon(&cds[0..3])
 }
 
-fn ends_with_stop_codon(cds: &Sequence) -> bool {
+fn ends_with_stop_codon(cds: &Sequence, code: &GeneticCode) -> bool {
     if cds.len() < 3 {
         return false;
     }
-    is_stop_codon(&cds[cds.len() - 3..cds.len()])
+    code.is_stop_codon(&cds[cds.len() - 3..cds.len()])
 }
 
 /// checks if any (in or out-of frame) position
@@ -518,24 +527,11 @@ fn extra_start_codon(seq: &Sequence) -> bool {
     }
     for idx in 0..seq.len() - 2 {
         let codon = &seq[idx..idx + 3];
-        if is_start_codon(codon) {
+        if GeneticCode::is_start_codon(codon) {
             return true;
         }
     }
     false
-}
-
-fn is_stop_codon(codon: &[crate::models::Nucleotide]) -> bool {
-    for stop in STOP_CODONS {
-        if codon == stop {
-            return true;
-        }
-    }
-    false
-}
-
-fn is_start_codon(codon: &[crate::models::Nucleotide]) -> bool {
-    codon == START_CODON
 }
 
 #[cfg(test)]
@@ -595,80 +591,84 @@ mod test {
 
     #[test]
     fn test_check_inframe_stop() {
+        let code = GeneticCode::default();
         assert_eq!(
-            early_stop_codon(&Sequence::from_str("TAGAAA").unwrap()),
+            early_stop_codon(&Sequence::from_str("TAGAAA").unwrap(), &code),
             true
         );
-        assert_eq!(early_stop_codon(&Sequence::from_str("TAG").unwrap()), false);
         assert_eq!(
-            early_stop_codon(&Sequence::from_str("TAGT").unwrap()),
+            early_stop_codon(&Sequence::from_str("TAG").unwrap(), &code),
             false
         );
         assert_eq!(
-            early_stop_codon(&Sequence::from_str("TAGTA").unwrap()),
+            early_stop_codon(&Sequence::from_str("TAGT").unwrap(), &code),
+            false
+        );
+        assert_eq!(
+            early_stop_codon(&Sequence::from_str("TAGTA").unwrap(), &code),
             false
         );
 
         assert_eq!(
-            early_stop_codon(&Sequence::from_str("ATGCGATAGTTA").unwrap()),
+            early_stop_codon(&Sequence::from_str("ATGCGATAGTTA").unwrap(), &code),
             true
         );
         assert_eq!(
-            early_stop_codon(&Sequence::from_str("ATGCGATAATTA").unwrap()),
+            early_stop_codon(&Sequence::from_str("ATGCGATAATTA").unwrap(), &code),
             true
         );
         assert_eq!(
-            early_stop_codon(&Sequence::from_str("ATGCGATGATTA").unwrap()),
+            early_stop_codon(&Sequence::from_str("ATGCGATGATTA").unwrap(), &code),
             true
         );
         assert_eq!(
-            early_stop_codon(&Sequence::from_str("TAGATGCGATTA").unwrap()),
+            early_stop_codon(&Sequence::from_str("TAGATGCGATTA").unwrap(), &code),
             true
         );
         assert_eq!(
-            early_stop_codon(&Sequence::from_str("TAAATGCGATTA").unwrap()),
+            early_stop_codon(&Sequence::from_str("TAAATGCGATTA").unwrap(), &code),
             true
         );
         assert_eq!(
-            early_stop_codon(&Sequence::from_str("TGAATGCGATTA").unwrap()),
+            early_stop_codon(&Sequence::from_str("TGAATGCGATTA").unwrap(), &code),
             true
         );
         assert_eq!(
-            early_stop_codon(&Sequence::from_str("ATGCGATAG").unwrap()),
+            early_stop_codon(&Sequence::from_str("ATGCGATAG").unwrap(), &code),
             false
         );
         assert_eq!(
-            early_stop_codon(&Sequence::from_str("ATGCGATAA").unwrap()),
+            early_stop_codon(&Sequence::from_str("ATGCGATAA").unwrap(), &code),
             false
         );
         assert_eq!(
-            early_stop_codon(&Sequence::from_str("ATGCGATGA").unwrap()),
+            early_stop_codon(&Sequence::from_str("ATGCGATGA").unwrap(), &code),
             false
         );
 
         assert_eq!(
-            early_stop_codon(&Sequence::from_str("ATAGATGCGATTA").unwrap()),
+            early_stop_codon(&Sequence::from_str("ATAGATGCGATTA").unwrap(), &code),
             false
         );
         assert_eq!(
-            early_stop_codon(&Sequence::from_str("ATAAATGCGATTA").unwrap()),
+            early_stop_codon(&Sequence::from_str("ATAAATGCGATTA").unwrap(), &code),
             false
         );
         assert_eq!(
-            early_stop_codon(&Sequence::from_str("ATGAATGCGATTA").unwrap()),
+            early_stop_codon(&Sequence::from_str("ATGAATGCGATTA").unwrap(), &code),
             false
         );
 
         assert_eq!(
-            early_stop_codon(&Sequence::from_str("ATTAGATGCGATTA").unwrap()),
+            early_stop_codon(&Sequence::from_str("ATTAGATGCGATTA").unwrap(), &code),
             false
         );
         assert_eq!(
-            early_stop_codon(&Sequence::from_str("ATTAAATGCGATTA").unwrap()),
+            early_stop_codon(&Sequence::from_str("ATTAAATGCGATTA").unwrap(), &code),
             false
         );
         assert_eq!(
-            early_stop_codon(&Sequence::from_str("ATTGAATGCGATTA").unwrap()),
+            early_stop_codon(&Sequence::from_str("ATTGAATGCGATTA").unwrap(), &code),
             false
         );
     }
@@ -768,21 +768,29 @@ mod test {
 
     #[test]
     fn test_correct_forward_single_stop_codon() {
+        let code = GeneticCode::default();
         let mut fasta = FastaReader::from_file("tests/data/small.fasta").unwrap();
         let mut tx = standard_transcript();
 
         // TGA
-        assert_eq!(correct_stop_codon(&tx, &mut fasta).unwrap(), Some(true));
+        assert_eq!(
+            correct_stop_codon(&tx, &mut fasta, &code).unwrap(),
+            Some(true)
+        );
 
         // TAG
         *tx.exons_mut()[2].cds_end_mut() = Some(39);
         *tx.exons_mut()[3].cds_start_mut() = None;
         *tx.exons_mut()[3].cds_end_mut() = None;
-        assert_eq!(correct_stop_codon(&tx, &mut fasta).unwrap(), Some(true));
+        assert_eq!(
+            correct_stop_codon(&tx, &mut fasta, &code).unwrap(),
+            Some(true)
+        );
     }
 
     #[test]
     fn test_correct_forward_split_stop_codon() {
+        let code = GeneticCode::default();
         let mut fasta = FastaReader::from_file("tests/data/small.fasta").unwrap();
         let mut tx = standard_transcript();
 
@@ -790,11 +798,15 @@ mod test {
         *tx.exons_mut()[2].cds_end_mut() = Some(38);
         *tx.exons_mut()[3].cds_start_mut() = Some(44);
         *tx.exons_mut()[3].cds_end_mut() = Some(44);
-        assert_eq!(correct_stop_codon(&tx, &mut fasta).unwrap(), Some(true));
+        assert_eq!(
+            correct_stop_codon(&tx, &mut fasta, &code).unwrap(),
+            Some(true)
+        );
     }
 
     #[test]
     fn test_correct_reverse_single_stop_codon() {
+        let code = GeneticCode::default();
         let mut fasta = FastaReader::from_file("tests/data/small.fasta").unwrap();
         let mut tx = standard_transcript();
 
@@ -806,13 +818,17 @@ mod test {
         *tx.exons_mut()[2].cds_end_mut() = Some(30);
         *tx.exons_mut()[3].cds_start_mut() = Some(38);
 
-        assert_eq!(correct_stop_codon(&tx, &mut fasta).unwrap(), Some(true));
+        assert_eq!(
+            correct_stop_codon(&tx, &mut fasta, &code).unwrap(),
+            Some(true)
+        );
     }
 
     #[test]
     fn test_qc_check() {
+        let code = GeneticCode::default();
         let mut fasta = FastaReader::from_file("tests/data/small.fasta").unwrap();
-        let qc = QcCheck::new(&standard_transcript(), &mut fasta);
+        let qc = QcCheck::new(&standard_transcript(), &mut fasta, &code);
         let mut ideal = QcCheck::ideal();
         // the standard transcript does not have a correct CDS-length...
         ideal.cds_len = QcResult::NOK;

@@ -1,5 +1,8 @@
 # Changelog
 
+# 0.2
+- Add GeneticCode to modify the translation table based on the applied genetic code. This change impacts some public functions of the QC-check module
+
 # 0.1.3
 - Add QC-check module to check if transcripts make sense with a given reference genome.
 

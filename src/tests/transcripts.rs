@@ -315,3 +315,60 @@ fn exons() -> Vec<models::Exon> {
         models::Exon::new(51, 55, None, None, models::Frame::None),
     ]
 }
+
+/// This is the sequence of chrM in the small.fasta file
+/// 1                              32 35     42                                                     97 100   106  111 115
+/// AATCTTGGCCTGGGCCAAGGAGACCTTCTCTCCAATGGCCTGCACCTGGCTTGCCAGGGCCGATCTTGGTGCCATCCAGGGGGCCTCTACAAGGATAATCTGACCTGCAGGGTCGAG...
+/// -------------------------------XXXATGGCCTG------------------------------------------------------AATC-----TGCAGGXXXX
+pub fn mito_transcript() -> models::Transcript {
+    let mut transcript = models::TranscriptBuilder::new()
+        .name("Test-Mito-Transcript")
+        .chrom("chrM")
+        .strand(models::Strand::Plus)
+        .gene("Test-Mito-Gene")
+        .cds_start_stat(models::CdsStat::None)
+        .cds_end_stat(models::CdsStat::None)
+        .build()
+        .unwrap();
+
+    let mut exons = vec![
+        models::Exon::new(32, 42, Some(35), Some(42), models::Frame::Zero),
+        models::Exon::new(97, 100, Some(97), Some(100), models::Frame::Two),
+        models::Exon::new(106, 115, Some(106), Some(111), models::Frame::Zero),
+    ];
+
+    transcript.append_exons(&mut exons);
+    transcript
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::fasta::FastaReader;
+    use crate::models::{Sequence, Strand};
+
+    #[test]
+    fn test_mito_transcript() {
+        let tx = mito_transcript();
+        let mut fasta_reader = FastaReader::from_file("tests/data/small.fasta").unwrap();
+
+        let seq =
+            Sequence::from_coordinates(&tx.cds_coordinates(), &Strand::Plus, &mut fasta_reader)
+                .unwrap();
+        assert_eq!(seq.to_string(), "ATGGCCTGAATCTGCAGG".to_string());
+
+        let seq =
+            Sequence::from_coordinates(&tx.exon_coordinates(), &Strand::Plus, &mut fasta_reader)
+                .unwrap();
+        assert_eq!(seq.to_string(), "CCAATGGCCTGAATCTGCAGGGTCG".to_string());
+
+        let coords = vec![(tx.chrom(), tx.tx_start(), tx.tx_end())];
+        let seq = Sequence::from_coordinates(&coords, &Strand::Plus, &mut fasta_reader).unwrap();
+        assert_eq!(
+            seq.to_string(),
+            "CCAATGGCCTGCACCTGGCTTGCCAGGGCCGATCTTGGTGCCATCCAGGGGGCCTCTACAAGGATAATCTGACCTGCAGGGTCG"
+                .to_string()
+        );
+    }
+}

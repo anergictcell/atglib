@@ -4,6 +4,7 @@
     html_favicon_url = "https://raw.githubusercontent.com/anergictcell/atg/main/assets/favicon.ico"
 )]
 #![cfg_attr(feature = "with-bench", feature(test))]
+
 #[cfg(all(test, feature = "with-bench"))]
 extern crate test;
 

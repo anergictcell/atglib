@@ -251,6 +251,8 @@ impl<'a> Composer<'a> {
                     // Stop codon is part of CDS, transcript is on negative strand
                     fragments if self.transcript.strand() == Strand::Minus => {
                         (fragments.last().unwrap().0, fragments.last().unwrap().1)
+                        // unwrap calls cannot fail, because this match branch is only
+                        // considered when `fragments` contains elements
                     }
 
                     // Stop codon is part of CDS on Plus strand

@@ -1,6 +1,7 @@
 /target
 .DS_Store
 Cargo.toml.bck
+Cargo.lock
 tests/data/hg19.fasta*
 tests/data/prepare_example_files.sh
 tests/data/hg19.ncbiRefSeq.gtf

@@ -213,6 +213,10 @@ impl<W: std::io::Write, R: std::io::Read + std::io::Seek> Writer<W, R> {
         }
     }
 
+    pub fn inner_mut(&mut self) -> &mut BufWriter<W> {
+        &mut self.inner
+    }
+
     /// Writes the sequence of all exons, split by exon and feature (5' UTR, CDS, 3' UTR)
     ///
     /// The start coordinate is 0-based (as with bed files).

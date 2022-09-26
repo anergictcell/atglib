@@ -73,8 +73,6 @@
 
 mod writer;
 
-use std::fs::File;
-
 use crate::fasta::FastaReader;
 use crate::models::{CoordinateVector, GeneticCode, Sequence, Transcript};
 use crate::utils::errors::FastaError;
@@ -206,7 +204,7 @@ impl QcCheck {
     /// let qc = QcCheck::new(&tx, &mut fasta_reader, &code);
     /// assert_eq!(qc.correct_start_codon(), QcResult::OK)
     /// ```
-    pub fn new(transcript: &Transcript, fasta: &mut FastaReader<File>, code: &GeneticCode) -> Self {
+    pub fn new(transcript: &Transcript, fasta: &mut FastaReader<impl std::io::Read + std::io::Seek>, code: &GeneticCode) -> Self {
         let mut res = QcCheck::default();
 
         let seq = match Sequence::from_coordinates(
@@ -291,7 +289,7 @@ impl QcCheck {
         &mut self,
         transcript: &Transcript,
         utr: CoordinateVector,
-        fasta: &mut FastaReader<File>,
+        fasta: &mut FastaReader<impl std::io::Read + std::io::Seek>,
     ) {
         match Sequence::from_coordinates(&utr, &transcript.strand(), fasta) {
             Ok(seq) => {
@@ -354,7 +352,7 @@ pub fn correct_cds_length(transcript: &Transcript) -> Option<bool> {
 /// IO errors or invalid coordinates of the transcript
 pub fn correct_start_codon(
     transcript: &Transcript,
-    fasta: &mut FastaReader<File>,
+    fasta: &mut FastaReader<impl std::io::Read + std::io::Seek>,
 ) -> Result<Option<bool>, FastaError> {
     let coords = transcript.start_codon();
 
@@ -392,7 +390,7 @@ pub fn correct_start_codon(
 /// IO errors or invalid coordinates of the transcript
 pub fn correct_stop_codon(
     transcript: &Transcript,
-    fasta: &mut FastaReader<File>,
+    fasta: &mut FastaReader<impl std::io::Read + std::io::Seek>,
     code: &GeneticCode,
 ) -> Result<Option<bool>, FastaError> {
     let coords = transcript.stop_codon();
@@ -431,7 +429,7 @@ pub fn correct_stop_codon(
 /// IO errors or invalid coordinates of the transcript
 pub fn no_upstream_stop_codon(
     transcript: &Transcript,
-    fasta: &mut FastaReader<File>,
+    fasta: &mut FastaReader<impl std::io::Read + std::io::Seek>,
     code: &GeneticCode,
 ) -> Result<Option<bool>, FastaError> {
     if !transcript.is_coding() {
@@ -459,7 +457,7 @@ pub fn no_upstream_stop_codon(
 /// does not indicate that the transcript is incorrect.
 pub fn no_upstream_start_codon(
     transcript: &Transcript,
-    fasta: &mut FastaReader<File>,
+    fasta: &mut FastaReader<impl std::io::Read + std::io::Seek>,
 ) -> Result<Option<bool>, FastaError> {
     if !transcript.is_coding() {
         return Ok(None);
@@ -483,7 +481,7 @@ pub fn no_upstream_start_codon(
 /// does not indicate that the transcript is incorrect.
 pub fn no_start_codon(
     transcript: &Transcript,
-    fasta: &mut FastaReader<File>,
+    fasta: &mut FastaReader<impl std::io::Read + std::io::Seek>,
 ) -> Result<bool, FastaError> {
     let seq =
         Sequence::from_coordinates(&transcript.exon_coordinates(), &transcript.strand(), fasta)?;

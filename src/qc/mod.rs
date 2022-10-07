@@ -358,25 +358,18 @@ pub fn correct_start_codon(
 
     // In the very vast majority of cases, the start codon will be within a single
     // exon, so we optimize for this case first
-    let mut seq = match coords.len() {
-        0 => return Ok(None),
-        1 => fasta.read_sequence(transcript.chrom(), coords[0].0.into(), coords[0].1.into())?,
-        _ => {
-            let mut tmp_seq = Sequence::with_capacity(3);
-            for fragment in coords {
-                tmp_seq.append(fasta.read_sequence(
-                    transcript.chrom(),
-                    fragment.0.into(),
-                    fragment.1.into(),
-                )?)
-            }
-            tmp_seq
-        }
-    };
-
-    if !transcript.forward() {
-        seq.reverse_complement();
+    if coords.is_empty() {
+        return Ok(None);
     }
+    let seq = Sequence::from_coordinates(
+        &coords
+            .iter()
+            .map(|coord| (transcript.chrom(), coord.0, coord.1))
+            .collect(),
+        &transcript.strand(),
+        fasta,
+    )?;
+
     Ok(Some(starts_with_start_codon(&seq)))
 }
 

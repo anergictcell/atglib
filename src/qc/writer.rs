@@ -30,14 +30,14 @@ use crate::utils::errors::{AtgError, ReadWriteError};
 /// let written_output = String::from_utf8(writer.into_inner().unwrap()).unwrap();
 /// assert_eq!(written_output, "Test-Gene\tTest-Transcript\tOK\tNOK\tOK\tOK\tOK\tOK\tOK\n");
 /// ```
-pub struct Writer<W: std::io::Write> {
+pub struct Writer<W: std::io::Write, R: std::io::Read + std::io::Seek> {
     inner: BufWriter<W>,
-    fasta_reader: Option<FastaReader<File>>,
+    fasta_reader: Option<FastaReader<R>>,
     genetic_code: GeneticCode,
     alternative_genetic_codes: Option<Vec<(String, GeneticCode)>>,
 }
 
-impl Writer<File> {
+impl<R: std::io::Read + std::io::Seek> Writer<File, R> {
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, ReadWriteError> {
         match File::create(path.as_ref()) {
             Ok(file) => Ok(Self::new(file)),
@@ -46,7 +46,7 @@ impl Writer<File> {
     }
 }
 
-impl<W: std::io::Write> Writer<W> {
+impl<W: std::io::Write, R:std::io::Read + std::io::Seek> Writer<W, R> {
     /// Creates a new generic Writer for any `std::io::Read`` object
     ///
     /// Use this method when you want to write to stdout or
@@ -85,7 +85,7 @@ impl<W: std::io::Write> Writer<W> {
     /// // specify the reference genome fasta file
     /// writer.fasta_reader(FastaReader::from_file("tests/data/small.fasta").unwrap());
     /// ```
-    pub fn fasta_reader(&mut self, r: FastaReader<File>) {
+    pub fn fasta_reader(&mut self, r: FastaReader<R>) {
         self.fasta_reader = Some(r)
     }
 
@@ -188,7 +188,7 @@ impl<W: std::io::Write> Writer<W> {
     }
 }
 
-impl<W: std::io::Write> TranscriptWrite for Writer<W> {
+impl<W: std::io::Write, R: std::io::Read + std::io::Seek> TranscriptWrite for Writer<W, R> {
     /// Writes a single transcript formatted as RefGene with an extra newline
     ///
     /// This method adds an extra newline at the end of the row

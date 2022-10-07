@@ -1,7 +1,6 @@
 use core::str::FromStr;
 use std::convert::TryFrom;
 use std::fmt;
-use std::fs::File;
 
 use crate::fasta::FastaReader;
 use crate::models::transcript::CoordinateVector;
@@ -387,11 +386,14 @@ impl Sequence {
     /// let seq = Sequence::from_coordinates(&coordinates, &Strand::Plus, &mut fasta_reader).unwrap();
     /// assert_eq!(seq.len(), 11);
     /// ```
-    pub fn from_coordinates(
+    pub fn from_coordinates<R>(
         coordinates: &CoordinateVector,
         strand: &crate::models::Strand,
-        fasta_reader: &mut FastaReader<File>,
-    ) -> Result<Sequence, FastaError> {
+        fasta_reader: &mut FastaReader<R>,
+    ) -> Result<Sequence, FastaError>
+    where
+        R: std::io::Seek + std::io::Read,
+    {
         let capacity: u32 = coordinates.iter().map(|x| x.2 - x.1 + 1).sum();
         let mut seq = Sequence::with_capacity(capacity as usize);
 

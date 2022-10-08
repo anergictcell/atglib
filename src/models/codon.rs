@@ -6,7 +6,7 @@ use crate::models::Strand;
 use crate::utils::errors::BuildCodonError;
 use crate::utils::intersect;
 
-/// A single codon, consisting of three nucleotides
+/// The genomic coordinates of a single codon, three (non continuos) nucleotides
 ///
 /// The codon can be split across multiple exons, each section is
 /// represented by a `CodonFragment`.

@@ -1,7 +1,6 @@
 use core::str::FromStr;
 use std::convert::TryFrom;
 use std::fmt;
-use std::fs::File;
 
 use crate::fasta::FastaReader;
 use crate::models::transcript::CoordinateVector;
@@ -19,6 +18,13 @@ const LOWERCASE_G: u8 = 0x67;
 const LOWERCASE_T: u8 = 0x74;
 const LOWERCASE_N: u8 = 0x64;
 
+// NCBI based byte representation of nucleotides
+// <https://www.ncbi.nlm.nih.gov/IEB/ToolBox/SDKDOCS/SEQFEAT.HTML>
+const NCBI_T: u8 = 0u8;
+const NCBI_C: u8 = 1u8;
+const NCBI_A: u8 = 2u8;
+const NCBI_G: u8 = 3u8;
+
 const LF: u8 = 0xa;
 const CR: u8 = 0xd;
 
@@ -33,19 +39,17 @@ pub enum Nucleotide {
 }
 
 impl Nucleotide {
-    /// Crates a `Nucleotide` from a character
-    pub fn new(c: &char) -> Result<Self, AtgError> {
-        match c {
-            'a' | 'A' => Ok(Self::A),
-            'c' | 'C' => Ok(Self::C),
-            'g' | 'G' => Ok(Self::G),
-            't' | 'T' => Ok(Self::T),
-            'n' | 'N' => Ok(Self::N),
-            _ => Err(AtgError::new("Invalid nucleotide")),
-        }
-    }
-
     /// Returns the complementary nucleotide
+    ///
+    /// # Examples
+    /// ```
+    /// use atglib::models::Nucleotide;
+    /// assert_eq!(Nucleotide::A.complement(), Nucleotide::T);
+    /// assert_eq!(Nucleotide::C.complement(), Nucleotide::G);
+    /// assert_eq!(Nucleotide::G.complement(), Nucleotide::C);
+    /// assert_eq!(Nucleotide::T.complement(), Nucleotide::A);
+    /// assert_eq!(Nucleotide::N.complement(), Nucleotide::N);
+    /// ```
     pub fn complement(&self) -> Self {
         match self {
             Self::A => Self::T,
@@ -56,7 +60,13 @@ impl Nucleotide {
         }
     }
 
-    // Returns the UTF-8 encoding of the Nucleotide string representation
+    /// Returns the UTF-8 encoding of the Nucleotide string representation
+    ///
+    /// # Examples
+    /// ```
+    /// use atglib::models::Nucleotide;
+    /// assert_eq!(Nucleotide::A.to_bytes(), 0x41);
+    /// ```
     pub fn to_bytes(self) -> u8 {
         match self {
             Self::A => UPPERCASE_A,
@@ -67,7 +77,17 @@ impl Nucleotide {
         }
     }
 
-    // Returns an &str of the Nucleotide
+    /// Converts the Nucleotide to &str
+    ///
+    /// # Examples
+    /// ```
+    /// use atglib::models::Nucleotide;
+    /// assert_eq!(Nucleotide::A.to_str(), "A");
+    /// assert_eq!(Nucleotide::C.to_str(), "C");
+    /// assert_eq!(Nucleotide::G.to_str(), "G");
+    /// assert_eq!(Nucleotide::T.to_str(), "T");
+    /// assert_eq!(Nucleotide::N.to_str(), "N");
+    /// ```
     pub fn to_str(self) -> &'static str {
         match self {
             Self::A => "A",
@@ -75,6 +95,29 @@ impl Nucleotide {
             Self::G => "G",
             Self::T => "T",
             Self::N => "N",
+        }
+    }
+
+    /// Returns the integer representation from [NCBI](https://www.ncbi.nlm.nih.gov/IEB/ToolBox/SDKDOCS/SEQFEAT.HTML)
+    ///
+    /// where `T=0, C=1, A=2, G=3`
+    ///
+    /// # Examples
+    /// ```
+    /// use atglib::models::Nucleotide;
+    /// assert_eq!(Nucleotide::A.as_ncbi_int().unwrap(), 2);
+    /// assert_eq!(Nucleotide::C.as_ncbi_int().unwrap(), 1);
+    /// assert_eq!(Nucleotide::G.as_ncbi_int().unwrap(), 3);
+    /// assert_eq!(Nucleotide::T.as_ncbi_int().unwrap(), 0);
+    /// assert!(Nucleotide::N.as_ncbi_int().is_err());
+    /// ```
+    pub fn as_ncbi_int(&self) -> Result<usize, AtgError> {
+        match self {
+            Nucleotide::A => Ok(NCBI_A.into()),
+            Nucleotide::C => Ok(NCBI_C.into()),
+            Nucleotide::G => Ok(NCBI_G.into()),
+            Nucleotide::T => Ok(NCBI_T.into()),
+            Nucleotide::N => Err(AtgError::new("N nucleotides cannot be converted to `int`")),
         }
     }
 }
@@ -109,8 +152,21 @@ impl fmt::Display for Nucleotide {
     }
 }
 
+/// Create a `Nucleotide` from a `char`
+///
+/// This trait implementation is not completely correct in that it returns `Error` when a
+/// new line or line feed character is used as `char` input. Invalid input causes a panic.
+///
+/// # Note
+/// This conversion should only be used if you are sure that the input data is correct
+/// and can be converted to `Nucleotide`.
 impl TryFrom<&char> for Nucleotide {
     type Error = AtgError;
+    /// The `char` must be one of `a A c C g G c C n N`
+    /// Newline and Control-Feed characters return an `AtgError`
+    ///
+    /// # Panics
+    /// If a Nucleotide cannot be derived from the input paramater
     fn try_from(c: &char) -> Result<Self, Self::Error> {
         match c {
             'a' | 'A' => Ok(Self::A),
@@ -124,18 +180,61 @@ impl TryFrom<&char> for Nucleotide {
     }
 }
 
+/// Create a `Nucleotide` from the `u8` code point of the
+/// nucleotide letter (`A`, `C`, `G`, `T`) (lower and upper case).
+/// In addition, Nucleotides can also be derived from the [NCBI-based
+/// integer representation](https://www.ncbi.nlm.nih.gov/IEB/ToolBox/SDKDOCS/SEQFEAT.HTML)
+/// T=0, C=1, A=2, G=3
+///
+/// This trait implementation is not completely correct in that it returns `Error` when a
+/// line feed character is used as `u8` input. Invalid input causes a panic.
+///
+/// # Note
+/// This conversion should only be used if you are sure that the input data is correct
+/// and can be converted to `Nucleotide`.
 impl TryFrom<&u8> for Nucleotide {
     type Error = AtgError;
+    /// The `u8` must be a valid ASCII representation of the `Nucleotide` or
+    /// the NCBI-based integer representation.
+    /// Newline and Control-Feed characters return an `AtgError`
+    ///
+    /// # Panics
+    /// If a Nucleotide cannot be derived from the input paramater
     fn try_from(b: &u8) -> Result<Nucleotide, AtgError> {
         match b {
-            &LOWERCASE_A | &UPPERCASE_A => Ok(Self::A),
-            &LOWERCASE_C | &UPPERCASE_C => Ok(Self::C),
-            &LOWERCASE_G | &UPPERCASE_G => Ok(Self::G),
-            &LOWERCASE_T | &UPPERCASE_T => Ok(Self::T),
+            &LOWERCASE_A | &UPPERCASE_A | &NCBI_A => Ok(Self::A),
+            &LOWERCASE_C | &UPPERCASE_C | &NCBI_C => Ok(Self::C),
+            &LOWERCASE_G | &UPPERCASE_G | &NCBI_G => Ok(Self::G),
+            &LOWERCASE_T | &UPPERCASE_T | &NCBI_T => Ok(Self::T),
             &LOWERCASE_N | &UPPERCASE_N => Ok(Self::N),
             &LF | &CR => Err(AtgError::new("newline")),
             _ => panic!("invalid nucleotide {}", b),
         }
+    }
+}
+
+/// Create a `Nucleotide` from the `u8` code point of the
+/// nucleotide letter (`A`, `C`, `G`, `T`) (lower and upper case).
+/// In addition, Nucleotides can also be derived from the [NCBI-based
+/// integer representation](https://www.ncbi.nlm.nih.gov/IEB/ToolBox/SDKDOCS/SEQFEAT.HTML)
+/// T=0, C=1, A=2, G=3
+///
+/// This trait implementation is not completely correct in that it returns `Error` when a
+/// line feed character is used as `u8` input. Invalid input causes a panic.
+///
+/// # Note
+/// This conversion should only be used if you are sure that the input data is correct
+/// and can be converted to `Nucleotide`.
+impl TryFrom<u8> for Nucleotide {
+    type Error = AtgError;
+    /// The `u8` must be a valid ASCII representation of the `Nucleotide` or
+    /// the NCBI-based integer representation.
+    /// Newline and Control-Feed characters return an `AtgError`
+    ///
+    /// # Panics
+    /// If a Nucleotide cannot be derived from the input paramater
+    fn try_from(b: u8) -> Result<Nucleotide, AtgError> {
+        Nucleotide::try_from(&b)
     }
 }
 
@@ -160,7 +259,7 @@ impl From<&Nucleotide> for u8 {
 /// A DNA sequence consisting of Nucleotides.
 ///
 /// It provides some utility methods, like
-///[`reverse_complement`](`Sequence::reverse_complement`)
+/// [`reverse_complement`](`Sequence::reverse_complement`)
 pub struct Sequence {
     sequence: Vec<Nucleotide>,
 }
@@ -170,7 +269,7 @@ impl FromStr for Sequence {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut sequence: Vec<Nucleotide> = vec![];
         for c in s.chars() {
-            sequence.push(Nucleotide::new(&c)?)
+            sequence.push(Nucleotide::try_from(&c)?)
         }
         Ok(Self { sequence })
     }
@@ -287,11 +386,14 @@ impl Sequence {
     /// let seq = Sequence::from_coordinates(&coordinates, &Strand::Plus, &mut fasta_reader).unwrap();
     /// assert_eq!(seq.len(), 11);
     /// ```
-    pub fn from_coordinates(
+    pub fn from_coordinates<R>(
         coordinates: &CoordinateVector,
         strand: &crate::models::Strand,
-        fasta_reader: &mut FastaReader<File>,
-    ) -> Result<Sequence, FastaError> {
+        fasta_reader: &mut FastaReader<R>,
+    ) -> Result<Sequence, FastaError>
+    where
+        R: std::io::Seek + std::io::Read,
+    {
         let capacity: u32 = coordinates.iter().map(|x| x.2 - x.1 + 1).sum();
         let mut seq = Sequence::with_capacity(capacity as usize);
 
@@ -348,7 +450,7 @@ impl Sequence {
     /// let mut seq = Sequence::from_raw_bytes("AC".as_bytes(), 2).unwrap();
     /// assert_eq!(seq.to_string(), "AC".to_string());
     ///
-    /// seq.push(Nucleotide::new(&'T').unwrap()).unwrap();
+    /// seq.push(Nucleotide::try_from(&'T').unwrap()).unwrap();
     /// assert_eq!(seq.to_string(), "ACT".to_string());
     /// ```
     pub fn push(&mut self, n: Nucleotide) -> Result<(), AtgError> {

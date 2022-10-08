@@ -1,5 +1,10 @@
 # Changelog
 
+# 0.2
+- Add GeneticCode to modify the translation table based on the applied genetic code. This change impacts some public functions of the QC-check module.
+- Allow generic `Read + Seek` objects for FastaReader. This enables reading directly from S3 or other remote sources.
+- Allow `FastaWriter` to write to different files (only one at a time). This means you don't have to initiate a new `FastaWriter` for every output file, but can reuse an existing instance and simply change the output writer.
+
 # 0.1.3
 - Add QC-check module to check if transcripts make sense with a given reference genome.
 

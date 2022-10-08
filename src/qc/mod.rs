@@ -204,7 +204,11 @@ impl QcCheck {
     /// let qc = QcCheck::new(&tx, &mut fasta_reader, &code);
     /// assert_eq!(qc.correct_start_codon(), QcResult::OK)
     /// ```
-    pub fn new(transcript: &Transcript, fasta: &mut FastaReader<impl std::io::Read + std::io::Seek>, code: &GeneticCode) -> Self {
+    pub fn new(
+        transcript: &Transcript,
+        fasta: &mut FastaReader<impl std::io::Read + std::io::Seek>,
+        code: &GeneticCode,
+    ) -> Self {
         let mut res = QcCheck::default();
 
         let seq = match Sequence::from_coordinates(

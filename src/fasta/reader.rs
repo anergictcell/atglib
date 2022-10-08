@@ -228,7 +228,10 @@ impl<R: std::io::Read> FastaReader<R> {
     /// let seq = reader.read_sequence("chr1", 1, 10).unwrap();
     /// assert_eq!(&seq.to_string(), "GCCTCAGAGG");
     /// ```
-    pub fn from_reader<R2: std::io::Read>(fasta_reader: R, fai_reader: R2) -> FastaResult<FastaReader<R>> {
+    pub fn from_reader<R2: std::io::Read>(
+        fasta_reader: R,
+        fai_reader: R2,
+    ) -> FastaResult<FastaReader<R>> {
         Ok(FastaReader {
             inner: BufReader::new(fasta_reader),
             idx: FastaIndex::from_reader(fai_reader)?,
@@ -293,7 +296,8 @@ mod tests {
     use super::*;
     #[test]
     fn test_fai_reading() {
-        let fai = FastaIndex::from_reader(File::open("tests/data/small.fasta.fai").unwrap()).unwrap();
+        let fai =
+            FastaIndex::from_reader(File::open("tests/data/small.fasta.fai").unwrap()).unwrap();
         assert_eq!(fai.offset("chr1", 1).unwrap(), 6);
         assert_eq!(fai.offset("chr1", 50).unwrap(), 55);
         assert_eq!(fai.offset("chr1", 51).unwrap(), 57);
@@ -307,7 +311,8 @@ mod tests {
 
     #[test]
     fn test_fai_errors() {
-        let fai = FastaIndex::from_reader(File::open("tests/data/small.fasta.fai").unwrap()).unwrap();
+        let fai =
+            FastaIndex::from_reader(File::open("tests/data/small.fasta.fai").unwrap()).unwrap();
         assert_eq!(
             fai.offset("chr6", 1).unwrap_err().to_string(),
             "index for chr6 does not exist".to_string()

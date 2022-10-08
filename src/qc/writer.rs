@@ -46,7 +46,7 @@ impl<R: std::io::Read + std::io::Seek> Writer<File, R> {
     }
 }
 
-impl<W: std::io::Write, R:std::io::Read + std::io::Seek> Writer<W, R> {
+impl<W: std::io::Write, R: std::io::Read + std::io::Seek> Writer<W, R> {
     /// Creates a new generic Writer for any `std::io::Read`` object
     ///
     /// Use this method when you want to write to stdout or

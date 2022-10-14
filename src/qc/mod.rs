@@ -79,6 +79,9 @@ use crate::utils::errors::FastaError;
 
 pub use writer::Writer;
 
+const MIN_EXON_LENGTH: u64 = 5;
+const MIN_INTRON_LENGTH: u64 = 5;
+
 /// Holds the result of a QC check
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum QcResult {
@@ -344,6 +347,34 @@ pub fn correct_cds_length(transcript: &Transcript) -> Option<bool> {
         }
         Some(len % 3 == 0)
     }
+}
+
+/// Returns true if all exons of the transcript are longer than `MIN_EXON_LENGTH`
+///
+/// This test is not a strict test, but can be used as an indicator, since
+/// such short exons should rarely, if ever, occur in nature.
+pub fn no_short_exon(transcript: &Transcript) -> bool {
+    for exon in transcript.exons() {
+        if ((exon.end() - exon.start()) as u64) < MIN_EXON_LENGTH {
+            return false
+        }
+    }
+    return true
+}
+
+/// Returns true if all introns of the transcript are longer than `MIN_INTRON_LENGTH`
+///
+/// This test is not a strict test, but can be used as an indicator, since
+/// such short introns should rarely, if ever, occur in nature.
+pub fn no_short_intron(transcript: &Transcript) -> bool {
+    let mut last_exon_end: u64 = 0;
+    for exon in transcript.exons() {
+        if (exon.start() as u64) - last_exon_end < MIN_INTRON_LENGTH {
+            return false
+        }
+        last_exon_end = exon.end() as u64;
+    }
+    return true
 }
 
 /// Checks if the transcript is coding and the CDS

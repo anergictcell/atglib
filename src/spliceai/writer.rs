@@ -257,8 +257,7 @@ mod test_spliceailine {
             "11,21,31,41,51,",
             "15,25,35,45,55,",
         ]
-        .join("\t")
-        .to_string();
+        .join("\t");
         assert_eq!(
             written_output,
             format!(
@@ -312,8 +311,7 @@ mod test_spliceailine {
             "11,21,31,41,51,",
             "15,25,35,45,55,",
         ]
-        .join("\t")
-        .to_string();
+        .join("\t");
         let expected_output2 = vec![
             "Test-Gene_2",
             "chr1",
@@ -323,8 +321,7 @@ mod test_spliceailine {
             "11,21,31,41,51,",
             "15,25,35,45,55,",
         ]
-        .join("\t")
-        .to_string();
+        .join("\t");
 
         // The `Transcripts` hashmap does not guarantee identical order of iterating
         // the genes. So we must test both possible orders of Test-Gene and Test-Gene2

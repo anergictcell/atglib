@@ -199,15 +199,15 @@ mod test_nm_001385228 {
         let stop = t.stop_codon();
         assert_eq!(stop.len(), 2);
 
-        assert_eq!(t.exons()[0].is_coding(), false);
-        assert_eq!(t.exons()[1].is_coding(), false);
-        assert_eq!(t.exons()[2].is_coding(), false);
-        assert_eq!(t.exons()[3].is_coding(), false);
-        assert_eq!(t.exons()[4].is_coding(), false);
-        assert_eq!(t.exons()[5].is_coding(), true);
-        assert_eq!(t.exons()[6].is_coding(), true);
-        assert_eq!(t.exons()[7].is_coding(), true);
-        assert_eq!(t.exons()[8].is_coding(), false);
+        assert!(!t.exons()[0].is_coding());
+        assert!(!t.exons()[1].is_coding());
+        assert!(!t.exons()[2].is_coding());
+        assert!(!t.exons()[3].is_coding());
+        assert!(!t.exons()[4].is_coding());
+        assert!(t.exons()[5].is_coding());
+        assert!(t.exons()[6].is_coding());
+        assert!(t.exons()[7].is_coding());
+        assert!(!t.exons()[8].is_coding());
 
         assert_eq!(t.exons()[5].cds_start().unwrap(), 206105119);
         assert_eq!(t.exons()[6].cds_start().unwrap(), 206105123);
@@ -243,7 +243,7 @@ mod test_nm_201550 {
         let stop = t.stop_codon();
         assert_eq!(stop.len(), 1);
 
-        assert_eq!(t.exons()[0].is_coding(), true);
+        assert!(t.exons()[0].is_coding());
     }
 }
 
@@ -310,11 +310,11 @@ mod test_ighm {
         let stop = t.stop_codon();
         assert_eq!(stop.len(), 1);
 
-        assert_eq!(t.exons()[0].is_coding(), true);
-        assert_eq!(t.exons()[1].is_coding(), true);
-        assert_eq!(t.exons()[2].is_coding(), true);
-        assert_eq!(t.exons()[3].is_coding(), true);
-        assert_eq!(t.exons()[4].is_coding(), true);
+        assert!(t.exons()[0].is_coding());
+        assert!(t.exons()[1].is_coding());
+        assert!(t.exons()[2].is_coding());
+        assert!(t.exons()[3].is_coding());
+        assert!(t.exons()[4].is_coding());
 
         assert_eq!(t.cds_start_codon_stat(), CdsStat::Complete);
         assert_eq!(t.cds_stop_codon_stat(), CdsStat::Incomplete);

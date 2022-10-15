@@ -28,7 +28,7 @@ use crate::utils::errors::{AtgError, ReadWriteError};
 /// writer.write_transcript_vec(&transcripts);
 ///
 /// let written_output = String::from_utf8(writer.into_inner().unwrap()).unwrap();
-/// assert_eq!(written_output, "Test-Gene\tTest-Transcript\tOK\tNOK\tOK\tOK\tOK\tOK\tOK\n");
+/// assert_eq!(written_output, "Test-Gene\tTest-Transcript\tOK\tNOK\tOK\tOK\tOK\tOK\tOK\tOK\tOK\n");
 /// ```
 pub struct Writer<W: std::io::Write, R: std::io::Read + std::io::Seek> {
     inner: BufWriter<W>,
@@ -288,9 +288,9 @@ mod tests {
         writer.writeln_single_transcript(&mito_tx).unwrap();
         let written_output = String::from_utf8(writer.into_inner().unwrap()).unwrap();
         // The Stop Codon is mitochondria specific and the transcript contains an upstream standard stop codon
-        //                                                                                                                                     |        |
-        //                                                                                                                                     V        V
-        assert_eq!(written_output, "Test-Gene\tTest-Transcript\tOK\tNOK\tOK\tOK\tOK\tOK\tOK\nTest-Mito-Gene\tTest-Mito-Transcript\tOK\tOK\tOK\tNOK\tOK\tNOK\tOK\n");
+        //                                                                                                                                             |        |
+        //                                                                                                                                             V        V
+        assert_eq!(written_output, "Test-Gene\tTest-Transcript\tOK\tNOK\tOK\tOK\tOK\tOK\tOK\tOK\tOK\nTest-Mito-Gene\tTest-Mito-Transcript\tOK\tOK\tOK\tNOK\tOK\tNOK\tOK\tNOK\tOK\n");
 
         // use vertebrate_mitochondria genetic code for chrM transcripts
         let output = Vec::new();
@@ -301,9 +301,9 @@ mod tests {
         writer.writeln_single_transcript(&mito_tx).unwrap();
         let written_output = String::from_utf8(writer.into_inner().unwrap()).unwrap();
         // That's how it should be if all is defined correctly
-        //                                                                                                                                     |       |
-        //                                                                                                                                     V       V
-        assert_eq!(written_output, "Test-Gene\tTest-Transcript\tOK\tNOK\tOK\tOK\tOK\tOK\tOK\nTest-Mito-Gene\tTest-Mito-Transcript\tOK\tOK\tOK\tOK\tOK\tOK\tOK\n");
+        //                                                                                                                                             |       |
+        //                                                                                                                                             V       V
+        assert_eq!(written_output, "Test-Gene\tTest-Transcript\tOK\tNOK\tOK\tOK\tOK\tOK\tOK\tOK\tOK\nTest-Mito-Gene\tTest-Mito-Transcript\tOK\tOK\tOK\tOK\tOK\tOK\tOK\tNOK\tOK\n");
 
         // use vertebrate_mitochondria genetic code for all transcripts => fail for standard transcript
         let output = Vec::new();
@@ -314,8 +314,8 @@ mod tests {
         writer.writeln_single_transcript(&mito_tx).unwrap();
         let written_output = String::from_utf8(writer.into_inner().unwrap()).unwrap();
         // The standard transcript uses a Stop codon which is not a stop codon in Mitochondria
-        //                                                                   |                                                                   |       |
-        //                                                                   V                                                                   V       V
-        assert_eq!(written_output, "Test-Gene\tTest-Transcript\tOK\tNOK\tOK\tNOK\tOK\tOK\tOK\nTest-Mito-Gene\tTest-Mito-Transcript\tOK\tOK\tOK\tOK\tOK\tOK\tOK\n");
+        //                                                                   |                                                                           |       |
+        //                                                                   V                                                                           V       V
+        assert_eq!(written_output, "Test-Gene\tTest-Transcript\tOK\tNOK\tOK\tNOK\tOK\tOK\tOK\tOK\tOK\nTest-Mito-Gene\tTest-Mito-Transcript\tOK\tOK\tOK\tOK\tOK\tOK\tOK\tNOK\tOK\n");
     }
 }

@@ -12,6 +12,8 @@
 //! | No upstream Stop Codon| The CDS does not contain another in-frame stop-codon | Coding | yes |
 //! | No Start codon | The full exon sequence does not contain a start codon `ATG` (Biologically speaking, a non-coding transcript could have `ATG` start codons that are not utilized) | Non-Coding | yes |
 //! | Correct Coordinates | The transcript is within the coordinates of the reference genome | all | yes |
+//! | No short exon | The transcript does not contain any short exons. The cutoff size can be defined dynamically. Use this test with care, small exons are known to exist <https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5436844/> | all | no |
+//! | No short intron | The transcript does not contain any short intrins. The cutoff sizd can be defined dynamically. Use this test with care. Small introns exist in nature, but could also be an indication of a discrepancy between the transcript and the reference genome | all | no |
 //!
 //!
 //! # QcCheck
@@ -55,7 +57,7 @@
 //! writer.write_transcript_vec(&transcripts);
 //!
 //! let written_output = String::from_utf8(writer.into_inner().unwrap()).unwrap();
-//! assert_eq!(written_output, "Test-Gene\tTest-Transcript\tOK\tNOK\tOK\tOK\tOK\tOK\tOK\n");
+//! assert_eq!(written_output, "Test-Gene\tTest-Transcript\tOK\tNOK\tOK\tOK\tOK\tOK\tOK\tOK\tOK\n");
 //! ```
 //!
 //! # Individual Tests
@@ -78,9 +80,6 @@ use crate::models::{CoordinateVector, GeneticCode, Sequence, Transcript};
 use crate::utils::errors::FastaError;
 
 pub use writer::Writer;
-
-const MIN_EXON_LENGTH: u64 = 5;
-const MIN_INTRON_LENGTH: u64 = 5;
 
 /// Holds the result of a QC check
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -156,6 +155,10 @@ pub struct QcCheck {
     upstream_stop: QcResult,
     upstream_start: QcResult,
     correct_coordinates: QcResult,
+    short_exon: QcResult,
+    short_intron: QcResult,
+    min_intron_size: u8,
+    min_exon_size: u8,
 }
 
 impl std::default::Default for QcCheck {
@@ -168,6 +171,10 @@ impl std::default::Default for QcCheck {
             upstream_start: QcResult::NA,
             upstream_stop: QcResult::NA,
             correct_coordinates: QcResult::NA,
+            short_exon: QcResult::NA,
+            short_intron: QcResult::NA,
+            min_intron_size: 5,
+            min_exon_size: 5,
         }
     }
 }
@@ -176,7 +183,7 @@ impl std::fmt::Display for QcCheck {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "{}\t{}\t{}\t{}\t{}\t{}\t{}",
+            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
             self.exon,
             self.cds_len,
             self.correct_start,
@@ -184,6 +191,8 @@ impl std::fmt::Display for QcCheck {
             self.upstream_start,
             self.upstream_stop,
             self.correct_coordinates,
+            self.short_exon,
+            self.short_intron,
         )
     }
 }
@@ -230,6 +239,9 @@ impl QcCheck {
 
         res.correct_coordinates = QcResult::OK;
         res.exon = contains_exon(transcript).into();
+        res.short_exon = no_short_exon(transcript, res.min_exon_size).into();
+        res.short_intron = no_short_intron(transcript, res.min_intron_size).into();
+
         if transcript.is_coding() {
             res.check_cds(transcript, &seq, code);
         };
@@ -242,6 +254,16 @@ impl QcCheck {
         res.check_utr(transcript, coords, fasta);
 
         res
+    }
+
+    /// Returns a mutable reference to the cutoff for [`QcResult::no_short_exon`]
+    pub fn min_exon_size_mut(&mut self) -> &mut u8 {
+        &mut self.min_exon_size
+    }
+
+    /// Returns a mutable reference to the cutoff for [`QcResult::no_short_intron`]
+    pub fn min_intron_size_mut(&mut self) -> &mut u8 {
+        &mut self.min_intron_size
     }
 
     /// Does the transcript contain at least one exon
@@ -279,6 +301,16 @@ impl QcCheck {
     /// Does the transcript lie within the reference genome coordinates
     pub fn correct_coordinates(&self) -> QcResult {
         self.correct_coordinates
+    }
+
+    /// All exons are larger than the defined threshold
+    pub fn no_short_exon(&self) -> QcResult {
+        self.short_exon
+    }
+
+    /// All intons are larger than the defined threshold
+    pub fn no_short_intron(&self) -> QcResult {
+        self.short_intron
     }
 
     fn check_cds(&mut self, transcript: &Transcript, seq: &Sequence, code: &GeneticCode) {
@@ -324,6 +356,10 @@ impl QcCheck {
             upstream_start: QcResult::OK,
             upstream_stop: QcResult::OK,
             correct_coordinates: QcResult::OK,
+            short_exon: QcResult::OK,
+            short_intron: QcResult::OK,
+            min_intron_size: 5,
+            min_exon_size: 5,
         }
     }
 }
@@ -349,32 +385,44 @@ pub fn correct_cds_length(transcript: &Transcript) -> Option<bool> {
     }
 }
 
-/// Returns true if all exons of the transcript are longer than `MIN_EXON_LENGTH`
+/// Returns `Some(true)` if all exons of the transcript are longer than `cutoff`
+///
+/// Returns `None` if the transcript does not have any exons.
 ///
 /// This test is not a strict test, but can be used as an indicator, since
-/// such short exons should rarely, if ever, occur in nature.
-pub fn no_short_exon(transcript: &Transcript) -> bool {
+/// such short exons occur rarely in nature.
+pub fn no_short_exon(transcript: &Transcript, cutoff: u8) -> Option<bool> {
+    if transcript.exon_count() == 0 {
+        return None;
+    }
     for exon in transcript.exons() {
-        if ((exon.end() - exon.start()) as u64) < MIN_EXON_LENGTH {
-            return false
+        if (exon.end() - exon.start() + 1) < cutoff as u32 {
+            return Some(false);
         }
     }
-    return true
+    Some(true)
 }
 
-/// Returns true if all introns of the transcript are longer than `MIN_INTRON_LENGTH`
+/// Returns `Some(true)` if all introns of the transcript are longer than `cutoff`
+///
+/// Returns `None` if the transcript has only 0 or 1 exons.
 ///
 /// This test is not a strict test, but can be used as an indicator, since
-/// such short introns should rarely, if ever, occur in nature.
-pub fn no_short_intron(transcript: &Transcript) -> bool {
-    let mut last_exon_end: u64 = 0;
-    for exon in transcript.exons() {
-        if (exon.start() as u64) - last_exon_end < MIN_INTRON_LENGTH {
-            return false
-        }
-        last_exon_end = exon.end() as u64;
+/// such short introns should rarely, if ever, occur in nature. Short introns
+/// *could* be an indicator for a discrepancy between transcript and reference genome.
+pub fn no_short_intron(transcript: &Transcript, cutoff: u8) -> Option<bool> {
+    if transcript.exon_count() <= 1 {
+        return None;
     }
-    return true
+
+    let mut last_exon_end = transcript.exons()[0].end();
+    for exon in &transcript.exons()[1..] {
+        if exon.start() - last_exon_end - 1 < cutoff as u32 {
+            return Some(false);
+        }
+        last_exon_end = exon.end();
+    }
+    Some(true)
 }
 
 /// Checks if the transcript is coding and the CDS
@@ -764,6 +812,41 @@ mod test {
             correct_stop_codon(&tx, &mut fasta, &code).unwrap(),
             Some(true)
         );
+    }
+
+    #[test]
+    fn test_short_exons() {
+        let mut tx = standard_transcript();
+        assert_eq!(no_short_exon(&tx, 5), Some(true));
+
+        *tx.exons_mut()[3].end_mut() = 44;
+        assert_eq!(no_short_exon(&tx, 5), Some(false));
+
+        *tx.exons_mut() = vec![];
+        assert_eq!(no_short_exon(&tx, 5), None);
+    }
+
+    #[test]
+    fn test_short_introns() {
+        let mut tx = standard_transcript();
+        assert_eq!(no_short_intron(&tx, 5), Some(true));
+
+        *tx.exons_mut()[3].start_mut() = 40;
+        assert_eq!(no_short_intron(&tx, 5), Some(false));
+
+        *tx.exons_mut() = vec![];
+        assert_eq!(no_short_intron(&tx, 5), None);
+
+        // Single exon transcripts don't have an intron
+        *tx.exons_mut() = vec![crate::models::Exon::new(12, 24, None, None, crate::models::Frame::None)];
+        assert_eq!(no_short_intron(&tx, 5), None);
+
+        // The first exon starts close to 0, but this gap is not considered an intron
+        *tx.exons_mut() = vec![
+            crate::models::Exon::new(2, 24, None, None, crate::models::Frame::None),
+            crate::models::Exon::new(30, 50, None, None, crate::models::Frame::None),
+        ];
+        assert_eq!(no_short_intron(&tx, 5), Some(true));
     }
 
     #[test]

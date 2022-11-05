@@ -256,12 +256,12 @@ impl QcCheck {
         res
     }
 
-    /// Returns a mutable reference to the cutoff for [`QcResult::no_short_exon`]
+    /// Returns a mutable reference to the cutoff for [`QcCheck::no_short_exon`]
     pub fn min_exon_size_mut(&mut self) -> &mut u8 {
         &mut self.min_exon_size
     }
 
-    /// Returns a mutable reference to the cutoff for [`QcResult::no_short_intron`]
+    /// Returns a mutable reference to the cutoff for [`QcCheck::no_short_intron`]
     pub fn min_intron_size_mut(&mut self) -> &mut u8 {
         &mut self.min_intron_size
     }

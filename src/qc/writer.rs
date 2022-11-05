@@ -182,6 +182,8 @@ impl<W: std::io::Write, R: std::io::Read + std::io::Seek> Writer<W, R> {
             "No upstream Start Codon",
             "No upstream Stop Codon",
             "Correct Coordinates",
+            "No short exon",
+            "No short intron"
         ];
         self.inner.write_all(columns.join("\t").as_bytes())?;
         self.inner.write_all("\n".as_bytes())

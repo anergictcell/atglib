@@ -337,6 +337,17 @@ mod test_relation {
         assert_eq!(relation((&2, &4), (&3, &5)), GenomicRelation::Left);
         assert_eq!(relation((&2, &3), (&3, &4)), GenomicRelation::Left);
     }
+
+    #[test]
+    fn test_display() {
+        assert_eq!(&GenomicRelation::Match.to_string(), "match");
+        assert_eq!(&GenomicRelation::Upstream.to_string(), "upstream");
+        assert_eq!(&GenomicRelation::Downstream.to_string(), "downstream");
+        assert_eq!(&GenomicRelation::Overlaps.to_string(), "overlaps");
+        assert_eq!(&GenomicRelation::Inside.to_string(), "inside");
+        assert_eq!(&GenomicRelation::Left.to_string(), "left");
+        assert_eq!(&GenomicRelation::Right.to_string(), "light");
+    }
 }
 
 #[cfg(test)]
@@ -417,5 +428,31 @@ mod test_merge {
         assert_eq!(merge(&[(1, 2), (2, 3), (4, 7)]), [(1, 3), (4, 7)]);
 
         assert_eq!(merge(&[(1, 2), (2, 3), (5, 7)]), [(1, 3), (5, 7)]);
+    }
+}
+
+#[cfg(test)]
+mod test_union {
+    use super::*;
+
+    #[test]
+    fn test_book_ended() {
+        assert_eq!(union((&3, &5), (&1, &2)), None);
+        assert_eq!(union((&3, &5), (&6, &7)), None);
+    }
+
+    #[test]
+    fn test_full_overlap() {
+        assert_eq!(union((&3, &5), (&2, &6)), Some((2, 6)));
+        assert_eq!(union((&3, &5), (&3, &5)), Some((3, 5)));
+        assert_eq!(union((&3, &6), (&4, &5)), Some((3, 6)));
+    }
+
+    #[test]
+    fn test_intersect() {
+        assert_eq!(union((&3, &5), (&1, &4)), Some((1, 5)));
+        assert_eq!(union((&3, &5), (&1, &3)), Some((1, 5)));
+        assert_eq!(union((&3, &5), (&4, &8)), Some((3, 8)));
+        assert_eq!(union((&3, &5), (&5, &8)), Some((3, 8)));
     }
 }

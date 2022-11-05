@@ -30,3 +30,15 @@ test:
     echo -ne "Checking formatting and doc generation"
     (cargo clippy && cargo fmt --check && cargo test -q && cargo doc && \
     echo " \e[32m\e[1mOK\e[0m") || echo "\e[31m\e[1mERROR\e[0m"
+
+coverage:
+    #!/usr/bin/env zsh
+    export RUSTFLAGS="-Cinstrument-coverage"
+    export CARGO_INCREMENTAL=0
+    export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort"
+    export RUSTDOCFLAGS="-Cpanic=abort"
+    cargo +nightly build
+    export LLVM_PROFILE_FILE="atg-%p-%m.profraw"
+    cargo +nightly test
+    grcov . -s . --binary-path ./target/debug/ -t html --branch --ignore-not-existing -o ./target/debug/coverage/
+    open target/debug/coverage/index.html

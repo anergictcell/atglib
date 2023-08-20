@@ -1,5 +1,8 @@
 # Changelog
 
+# 0.2.1
+- Pin serde version (See https://github.com/serde-rs/serde/issues/2538 for context)
+
 # 0.2
 - Add GeneticCode to modify the translation table based on the applied genetic code. This change impacts some public functions of the QC-check module.
 - Allow generic `Read + Seek` objects for FastaReader. This enables reading directly from S3 or other remote sources.

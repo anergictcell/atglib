@@ -12,8 +12,7 @@ keywords = ["bioinformatics", "genomics", "transcriptomics", "transcript", "gene
 categories = ["science", "data-structures", "parser-implementations"]
 
 [dependencies]
-# See https://github.com/serde-rs/serde/issues/2538#issuecomment-1684517372 for why we pin serde
-serde = { version = "1.0.156, < 1.0.172", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
 log = "0.4"
 
 

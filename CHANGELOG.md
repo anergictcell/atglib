@@ -1,5 +1,9 @@
 # Changelog
 
+# 0.2.2
+- Unpin `serde`, the issue from 0.2.1 was fixed by maintainer
+- [Dev] Add first building blocks for benchmarking
+
 # 0.2.1
 - Pin serde version (See https://github.com/serde-rs/serde/issues/2538 for context)
 

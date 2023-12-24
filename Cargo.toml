@@ -16,5 +16,11 @@ categories = ["science", "data-structures", "parser-implementations"]
 serde = { version = "1.0.156, < 1.0.172", features = ["derive"] }
 log = "0.4"
 
-[features]
-with-bench = []
+
+[dev-dependencies]
+criterion = "0.4"
+
+
+[[bench]]
+name = "genepred"
+harness = false

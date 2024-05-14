@@ -260,7 +260,75 @@ impl FromStr for GtfRecord {
     }
 }
 
-fn parse_attributes(mut attrs: &str) -> Result<(&str, &str), ParseGtfError> {
+#[derive(Debug)]
+pub(crate) struct UncheckedGtfRecord(GtfRecord);
+
+impl UncheckedGtfRecord {
+    /// The feature type of the record is a standard feature, as described in the [GTF spec](crate::gtf)
+    ///
+    /// "CDS", "start_codon", "stop_codon", "5UTR", "3UTR", "inter", "inter_CNS", "intron_CNS", "exon"
+    pub fn standard_feature(&self) -> bool {
+        matches!(
+            self.0.feature,
+            GtfFeature::CDS
+                | GtfFeature::Exon
+                | GtfFeature::StartCodon
+                | GtfFeature::StopCodon
+                | GtfFeature::UTR5
+                | GtfFeature::UTR3
+                | GtfFeature::Inter
+                | GtfFeature::InterCNS
+                | GtfFeature::IntronCNS
+        )
+    }
+}
+
+impl TryFrom<UncheckedGtfRecord> for GtfRecord {
+    type Error = ParseGtfError;
+    fn try_from(record: UncheckedGtfRecord) -> Result<Self, Self::Error> {
+        if !record.0.gene.is_empty() && !record.0.transcript.is_empty() {
+            Ok(record.0)
+        } else {
+            Err(ParseGtfError::new("Missing gene_id or transcript_id"))
+        }
+    }
+}
+
+impl FromStr for UncheckedGtfRecord {
+    type Err = ParseGtfError;
+
+    fn from_str(s: &str) -> Result<Self, ParseGtfError> {
+        let mut rb = GtfRecordBuilder::new();
+        let mut last_idx = 0;
+
+        // Going through the GTF lines column by column
+        // manually, since this is faster than splitting
+        // the string into columns and iterating
+        last_idx = rb.chrom_from_str(s, last_idx)?;
+        last_idx = rb.source_from_str(s, last_idx)?;
+        last_idx = rb.feature_from_str(s, last_idx)?;
+        last_idx = rb.start_from_str(s, last_idx)?;
+        last_idx = rb.end_from_str(s, last_idx)?;
+        last_idx = rb.score_from_str(s, last_idx)?;
+        last_idx = rb.strand_from_str(s, last_idx)?;
+        last_idx = rb.frame_from_str(s, last_idx)?;
+
+        // Attributes can be the last or second last column
+        // so we check for both cases here
+        let (gene, transcript) = match s[last_idx..].find('\t') {
+            Some(idx) => parse_attributes_lossy(&s[last_idx..idx + last_idx])?,
+            None => parse_attributes_lossy(s[last_idx..].trim_end())?,
+        };
+        rb.gene(gene).transcript(transcript);
+
+        match rb.build() {
+            Ok(x) => Ok(UncheckedGtfRecord(x)),
+            Err(err) => Err(ParseGtfError::new(err)),
+        }
+    }
+}
+
+fn parse_attributes_lossy(mut attrs: &str) -> Result<(&str, &str), ParseGtfError> {
     let mut gene: &str = "";
     let mut transcript: &str = "";
 
@@ -285,7 +353,19 @@ fn parse_attributes(mut attrs: &str) -> Result<(&str, &str), ParseGtfError> {
         }
         attrs = attrs[(idx + 1)..].trim();
     }
-    Err(ParseGtfError::new("Missing gene_id or transcript_id"))
+    Ok((gene, transcript))
+}
+
+fn parse_attributes(attrs: &str) -> Result<(&str, &str), ParseGtfError> {
+    let parsed = parse_attributes_lossy(attrs)?;
+
+    if parsed.0.is_empty() {
+        Err(ParseGtfError::new("Missing gene_id"))
+    } else if parsed.1.is_empty() {
+        Err(ParseGtfError::new("Missing transcript_id"))
+    } else {
+        Ok(parsed)
+    }
 }
 
 fn parse_attribute(attr: &str) -> Result<(&str, &str), ParseGtfError> {

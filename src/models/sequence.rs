@@ -719,7 +719,7 @@ mod tests {
     #[test]
     fn test_create_sequence() {
         let s = "ATCGACGATCGATCGATGAGCGATCGACGATCGCGCTATCGCTA";
-        let seq = Sequence::from_str(&s).unwrap();
+        let seq = Sequence::from_str(s).unwrap();
 
         assert_eq!(seq.len(), 44);
         assert_eq!(seq.to_string(), s.to_string())
@@ -728,7 +728,7 @@ mod tests {
     #[test]
     fn test_chunks() {
         let s = "ATCGACGATCGATCGATGAGCGATCGACGATCGCGCTATCGCTA";
-        let seq = Sequence::from_str(&s).unwrap();
+        let seq = Sequence::from_str(s).unwrap();
 
         let mut iter = seq.chunks(3);
         assert_eq!(
@@ -744,33 +744,27 @@ mod tests {
     #[test]
     fn test_contains() {
         let s = "ATGCGA";
-        let seq = Sequence::from_str(&s).unwrap();
+        let seq = Sequence::from_str(s).unwrap();
 
-        assert_eq!(seq.contains(vec![Nucleotide::A]), true);
-        assert_eq!(seq.contains(vec![Nucleotide::C]), true);
-        assert_eq!(seq.contains(vec![Nucleotide::G]), true);
-        assert_eq!(seq.contains(vec![Nucleotide::T]), true);
-        assert_eq!(seq.contains(vec![Nucleotide::N]), false);
-        assert_eq!(seq.contains(vec![Nucleotide::A, Nucleotide::T]), true);
-        assert_eq!(seq.contains(vec![Nucleotide::T, Nucleotide::G]), true);
-        assert_eq!(seq.contains(vec![Nucleotide::A, Nucleotide::C]), false);
-        assert_eq!(seq.contains(vec![Nucleotide::G, Nucleotide::T]), false);
-        assert_eq!(seq.contains(vec![Nucleotide::G, Nucleotide::A]), true);
-        assert_eq!(
-            seq.contains(vec![Nucleotide::C, Nucleotide::G, Nucleotide::A]),
-            true
-        );
-        assert_eq!(
-            seq.contains(vec![Nucleotide::G, Nucleotide::A, Nucleotide::C]),
-            false
-        );
+        assert!(seq.contains(vec![Nucleotide::A]));
+        assert!(seq.contains(vec![Nucleotide::C]));
+        assert!(seq.contains(vec![Nucleotide::G]));
+        assert!(seq.contains(vec![Nucleotide::T]));
+        assert!(!seq.contains(vec![Nucleotide::N]));
+        assert!(seq.contains(vec![Nucleotide::A, Nucleotide::T]));
+        assert!(seq.contains(vec![Nucleotide::T, Nucleotide::G]));
+        assert!(seq.contains(vec![Nucleotide::A, Nucleotide::C]));
+        assert!(seq.contains(vec![Nucleotide::G, Nucleotide::T]));
+        assert!(seq.contains(vec![Nucleotide::G, Nucleotide::A]));
+        assert!(seq.contains(vec![Nucleotide::C, Nucleotide::G, Nucleotide::A]));
+        assert!(seq.contains(vec![Nucleotide::G, Nucleotide::A, Nucleotide::C]));
     }
 
     #[test]
     #[should_panic]
     fn test_contains_fails() {
         let s = "ATGCGA";
-        let seq = Sequence::from_str(&s).unwrap();
-        assert_eq!(seq.contains(vec![]), true);
+        let seq = Sequence::from_str(s).unwrap();
+        assert!(seq.contains(vec![]));
     }
 }

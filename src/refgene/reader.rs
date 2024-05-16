@@ -349,7 +349,7 @@ mod tests {
         ];
         let exons = instantiate_exons(&cols);
 
-        assert!(exons.is_err());
+        assert_eq!(exons.is_err(), true);
         assert_eq!(
             exons.unwrap_err().message,
             "Too few exon ends in input".to_string()
@@ -378,7 +378,7 @@ mod tests {
         ];
         let exons = instantiate_exons(&cols);
 
-        assert!(exons.is_err());
+        assert_eq!(exons.is_err(), true);
         assert_eq!(
             exons.unwrap_err().message,
             "Too few exon starts in input".to_string()
@@ -407,7 +407,7 @@ mod tests {
         ];
         let exons = instantiate_exons(&cols);
 
-        assert!(exons.is_err());
+        assert_eq!(exons.is_err(), true);
         assert_eq!(
             exons.unwrap_err().message,
             "Too few exon Frame offsets".to_string()
@@ -436,7 +436,7 @@ mod tests {
         ];
         let exons = instantiate_exons(&cols);
 
-        assert!(exons.is_err());
+        assert_eq!(exons.is_err(), true);
         assert_eq!(
             exons.unwrap_err().message,
             "invalid frame indicator /".to_string()

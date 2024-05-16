@@ -538,108 +538,134 @@ mod test {
 
     #[test]
     fn test_starts_with_start_codon() {
-        assert!(starts_with_start_codon(
-            &Sequence::from_str("ATGCGATGAT").unwrap()
-        ));
-        assert!(starts_with_start_codon(&Sequence::from_str("ATG").unwrap()));
-        assert!(starts_with_start_codon(&Sequence::from_str("AT").unwrap()));
-        assert!(starts_with_start_codon(&Sequence::from_str("TG").unwrap()));
-        assert!(starts_with_start_codon(&Sequence::from_str("").unwrap()));
-        assert!(starts_with_start_codon(
-            &Sequence::from_str("CATG").unwrap()
-        ));
+        assert_eq!(
+            starts_with_start_codon(&Sequence::from_str("ATGCGATGAT").unwrap()),
+            true
+        );
+        assert_eq!(
+            starts_with_start_codon(&Sequence::from_str("ATG").unwrap()),
+            true
+        );
+        assert_eq!(
+            starts_with_start_codon(&Sequence::from_str("AT").unwrap()),
+            false
+        );
+        assert_eq!(
+            starts_with_start_codon(&Sequence::from_str("TG").unwrap()),
+            false
+        );
+        assert_eq!(
+            starts_with_start_codon(&Sequence::from_str("").unwrap()),
+            false
+        );
+        assert_eq!(
+            starts_with_start_codon(&Sequence::from_str("CATG").unwrap()),
+            false
+        );
     }
 
     #[test]
     fn test_extra_start_codon() {
-        assert!(extra_start_codon(&Sequence::from_str("ATGCGACGA").unwrap()));
-        assert!(extra_start_codon(&Sequence::from_str("ATG").unwrap()));
-        assert!(extra_start_codon(&Sequence::from_str("AT").unwrap()));
-        assert!(extra_start_codon(&Sequence::from_str("TG").unwrap()));
-        assert!(extra_start_codon(&Sequence::from_str("").unwrap()));
-        assert!(extra_start_codon(&Sequence::from_str("CATG").unwrap()));
-        assert!(extra_start_codon(&Sequence::from_str("CAATG").unwrap()));
+        assert_eq!(
+            extra_start_codon(&Sequence::from_str("ATGCGACGA").unwrap()),
+            true
+        );
+        assert_eq!(extra_start_codon(&Sequence::from_str("ATG").unwrap()), true);
+        assert_eq!(extra_start_codon(&Sequence::from_str("AT").unwrap()), false);
+        assert_eq!(extra_start_codon(&Sequence::from_str("TG").unwrap()), false);
+        assert_eq!(extra_start_codon(&Sequence::from_str("").unwrap()), false);
+        assert_eq!(
+            extra_start_codon(&Sequence::from_str("CATG").unwrap()),
+            true
+        );
+        assert_eq!(
+            extra_start_codon(&Sequence::from_str("CAATG").unwrap()),
+            true
+        );
     }
 
     #[test]
     fn test_check_inframe_stop() {
         let code = GeneticCode::default();
-        assert!(early_stop_codon(
-            &Sequence::from_str("TAGAAA").unwrap(),
-            &code
-        ));
-        assert!(early_stop_codon(&Sequence::from_str("TAG").unwrap(), &code));
-        assert!(early_stop_codon(
-            &Sequence::from_str("TAGT").unwrap(),
-            &code
-        ));
-        assert!(early_stop_codon(
-            &Sequence::from_str("TAGTA").unwrap(),
-            &code
-        ));
+        assert_eq!(
+            early_stop_codon(&Sequence::from_str("TAGAAA").unwrap(), &code),
+            true
+        );
+        assert_eq!(
+            early_stop_codon(&Sequence::from_str("TAG").unwrap(), &code),
+            false
+        );
+        assert_eq!(
+            early_stop_codon(&Sequence::from_str("TAGT").unwrap(), &code),
+            false
+        );
+        assert_eq!(
+            early_stop_codon(&Sequence::from_str("TAGTA").unwrap(), &code),
+            false
+        );
 
-        assert!(early_stop_codon(
-            &Sequence::from_str("ATGCGATAGTTA").unwrap(),
-            &code
-        ));
-        assert!(early_stop_codon(
-            &Sequence::from_str("ATGCGATAATTA").unwrap(),
-            &code
-        ));
-        assert!(early_stop_codon(
-            &Sequence::from_str("ATGCGATGATTA").unwrap(),
-            &code
-        ));
-        assert!(early_stop_codon(
-            &Sequence::from_str("TAGATGCGATTA").unwrap(),
-            &code
-        ));
-        assert!(early_stop_codon(
-            &Sequence::from_str("TAAATGCGATTA").unwrap(),
-            &code
-        ));
-        assert!(early_stop_codon(
-            &Sequence::from_str("TGAATGCGATTA").unwrap(),
-            &code
-        ));
-        assert!(early_stop_codon(
-            &Sequence::from_str("ATGCGATAG").unwrap(),
-            &code
-        ));
-        assert!(early_stop_codon(
-            &Sequence::from_str("ATGCGATAA").unwrap(),
-            &code
-        ));
-        assert!(early_stop_codon(
-            &Sequence::from_str("ATGCGATGA").unwrap(),
-            &code
-        ));
+        assert_eq!(
+            early_stop_codon(&Sequence::from_str("ATGCGATAGTTA").unwrap(), &code),
+            true
+        );
+        assert_eq!(
+            early_stop_codon(&Sequence::from_str("ATGCGATAATTA").unwrap(), &code),
+            true
+        );
+        assert_eq!(
+            early_stop_codon(&Sequence::from_str("ATGCGATGATTA").unwrap(), &code),
+            true
+        );
+        assert_eq!(
+            early_stop_codon(&Sequence::from_str("TAGATGCGATTA").unwrap(), &code),
+            true
+        );
+        assert_eq!(
+            early_stop_codon(&Sequence::from_str("TAAATGCGATTA").unwrap(), &code),
+            true
+        );
+        assert_eq!(
+            early_stop_codon(&Sequence::from_str("TGAATGCGATTA").unwrap(), &code),
+            true
+        );
+        assert_eq!(
+            early_stop_codon(&Sequence::from_str("ATGCGATAG").unwrap(), &code),
+            false
+        );
+        assert_eq!(
+            early_stop_codon(&Sequence::from_str("ATGCGATAA").unwrap(), &code),
+            false
+        );
+        assert_eq!(
+            early_stop_codon(&Sequence::from_str("ATGCGATGA").unwrap(), &code),
+            false
+        );
 
-        assert!(early_stop_codon(
-            &Sequence::from_str("ATAGATGCGATTA").unwrap(),
-            &code
-        ));
-        assert!(early_stop_codon(
-            &Sequence::from_str("ATAAATGCGATTA").unwrap(),
-            &code
-        ));
-        assert!(early_stop_codon(
-            &Sequence::from_str("ATGAATGCGATTA").unwrap(),
-            &code
-        ));
+        assert_eq!(
+            early_stop_codon(&Sequence::from_str("ATAGATGCGATTA").unwrap(), &code),
+            false
+        );
+        assert_eq!(
+            early_stop_codon(&Sequence::from_str("ATAAATGCGATTA").unwrap(), &code),
+            false
+        );
+        assert_eq!(
+            early_stop_codon(&Sequence::from_str("ATGAATGCGATTA").unwrap(), &code),
+            false
+        );
 
-        assert!(early_stop_codon(
-            &Sequence::from_str("ATTAGATGCGATTA").unwrap(),
-            &code
-        ));
-        assert!(early_stop_codon(
-            &Sequence::from_str("ATTAAATGCGATTA").unwrap(),
-            &code
-        ));
-        assert!(early_stop_codon(
-            &Sequence::from_str("ATTGAATGCGATTA").unwrap(),
-            &code
-        ));
+        assert_eq!(
+            early_stop_codon(&Sequence::from_str("ATTAGATGCGATTA").unwrap(), &code),
+            false
+        );
+        assert_eq!(
+            early_stop_codon(&Sequence::from_str("ATTAAATGCGATTA").unwrap(), &code),
+            false
+        );
+        assert_eq!(
+            early_stop_codon(&Sequence::from_str("ATTGAATGCGATTA").unwrap(), &code),
+            false
+        );
     }
 
     #[test]

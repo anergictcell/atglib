@@ -1,3 +1,4 @@
+use std::fmt::Write as FmtWrite;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
@@ -137,23 +138,35 @@ impl From<&Transcript> for Vec<String> {
         // Don't ask, but some reason the refGene specs indicate that
         // there is also a trailing comma after the list of exons
         // e.g.: `12227,12721,14409,`
-        columns[EXON_STARTS_COL] = transcript
-            .exons()
-            .iter()
-            // RefGene handled start coordinates differently, so we substract 1.
-            // See the comments in `instantiate_exons`.
-            .map(|exon| format!("{},", (exon.start() - 1)))
-            .collect();
-        columns[EXON_ENDS_COL] = transcript
-            .exons()
-            .iter()
-            .map(|exon| format!("{},", exon.end()))
-            .collect();
-        columns[EXON_FRAMES_COL] = transcript
-            .exons()
-            .iter()
-            .map(|exon| format!("{},", exon.frame_offset().to_refgene()))
-            .collect();
+
+        columns[EXON_STARTS_COL] = transcript.exons().iter().fold(
+            // Assuming that most genomic positions are 8-9 digits, plus the comma
+            String::with_capacity(transcript.exon_count() * 10),
+            |mut output, exon| {
+                // RefGene handled start coordinates differently, so we substract 1.
+                // See the comments in `instantiate_exons`.
+                let _ = write!(output, "{},", exon.start() - 1);
+                output
+            },
+        );
+
+        columns[EXON_ENDS_COL] = transcript.exons().iter().fold(
+            // Assuming that most genomic positions are 8-9 digits, plus the comma
+            String::with_capacity(transcript.exon_count() * 10),
+            |mut output, exon| {
+                let _ = write!(output, "{},", exon.end());
+                output
+            },
+        );
+
+        columns[EXON_FRAMES_COL] = transcript.exons().iter().fold(
+            // Assuming that most genomic positions are 8-9 digits, plus the comma
+            String::with_capacity(transcript.exon_count() * 10),
+            |mut output, exon| {
+                let _ = write!(output, "{},", exon.frame_offset().to_refgene());
+                output
+            },
+        );
 
         columns
     }

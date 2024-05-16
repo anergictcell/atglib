@@ -421,7 +421,10 @@ mod tests {
         let transcript = "chr16\tncbiRefSeq.2021-05-17\tgene\t66969419\t66978999\t.\t+\t.\tgene_id \"CES2\"; transcript_id \"NM_001365408.1\"; gene_name \"CES2\";\n\
         chr1\tncbiRefSeq.2021-05-17\texon\t206100298\t206100445\t.\t-\t.\tgene_id \"SRGAP2B\"; transcript_id \"NM_001385228.1_2\"; exon_number \"9\"; exon_id \"NM_001385228.1_2.9\"; gene_name \"SRGAP2B\";".as_bytes();
         let mut reader = Reader::new(transcript);
-        assert!(reader.line().expect("The record contains one proper line").is_ok());
+        assert!(reader
+            .line()
+            .expect("The record contains one proper line")
+            .is_ok());
         assert!(reader.line().is_none());
     }
 
@@ -429,7 +432,10 @@ mod tests {
     fn test_gene_line_contains_invalid_data() {
         let transcript = "chr16\tncbiRefSeq.2021-05-17\tgene\t66969419\t66978999\t.\tINVALID\t.\tgene_id \"CES2\"; transcript_id \"NM_001365408.1\"; gene_name \"CES2\";\n".as_bytes();
         let mut reader = Reader::new(transcript);
-        assert!(reader.line().expect("The record contains one proper line").is_err());
+        assert!(reader
+            .line()
+            .expect("The record contains one proper line")
+            .is_err());
         assert!(reader.line().is_none());
     }
 
@@ -437,17 +443,26 @@ mod tests {
     fn test_without_gene_or_transcript_errors() {
         let transcript = "chr16\tncbiRefSeq.2021-05-17\texon\t66969419\t66978999\t.\t+\t.\tgene_id \"CES2\"; transcript_id \"NM_001365408.1\"; gene_name \"CES2\";\n".as_bytes();
         let mut reader = Reader::new(transcript);
-        assert!(reader.line().expect("The record contains one proper line").is_ok());
+        assert!(reader
+            .line()
+            .expect("The record contains one proper line")
+            .is_ok());
         assert!(reader.line().is_none());
 
         let transcript = "chr16\tncbiRefSeq.2021-05-17\texon\t66969419\t66978999\t.\t+\t.\ttranscript_id \"NM_001365408.1\"; gene_name \"CES2\";\n".as_bytes();
         let mut reader = Reader::new(transcript);
-        assert!(reader.line().expect("The record contains one proper line").is_err());
+        assert!(reader
+            .line()
+            .expect("The record contains one proper line")
+            .is_err());
         assert!(reader.line().is_none());
 
         let transcript = "chr16\tncbiRefSeq.2021-05-17\texon\t66969419\t66978999\t.\t+\t.\tgene_id \"CES2\"; gene_name \"CES2\";\n".as_bytes();
         let mut reader = Reader::new(transcript);
-        assert!(reader.line().expect("The record contains one proper line").is_err());
+        assert!(reader
+            .line()
+            .expect("The record contains one proper line")
+            .is_err());
         assert!(reader.line().is_none());
     }
 }

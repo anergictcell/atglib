@@ -32,8 +32,8 @@ impl FromStr for GtfFeature {
             "CDS" => Ok(Self::CDS),
             "start_codon" => Ok(Self::StartCodon),
             "stop_codon" => Ok(Self::StopCodon),
-            "5UTR" => Ok(Self::UTR5),
-            "3UTR" => Ok(Self::UTR3),
+            "5UTR" | "five_prime_utr" => Ok(Self::UTR5),
+            "3UTR" | "three_prime_utr" => Ok(Self::UTR3),
             "UTR" => Ok(Self::UTR),
             "inter" => Ok(Self::Inter),
             "inter_CNS" => Ok(Self::InterCNS),
@@ -266,7 +266,7 @@ pub(crate) struct UncheckedGtfRecord(GtfRecord);
 impl UncheckedGtfRecord {
     /// The feature type of the record is a standard feature, as described in the [GTF spec](crate::gtf)
     ///
-    /// "CDS", "start_codon", "stop_codon", "5UTR", "3UTR", "inter", "inter_CNS", "intron_CNS", "exon"
+    /// "CDS", "start_codon", "stop_codon", "5UTR", "3UTR", "UTR", "inter", "inter_CNS", "intron_CNS", "exon"
     pub fn standard_feature(&self) -> bool {
         matches!(
             self.0.feature,
@@ -276,6 +276,7 @@ impl UncheckedGtfRecord {
                 | GtfFeature::StopCodon
                 | GtfFeature::UTR5
                 | GtfFeature::UTR3
+                | GtfFeature::UTR
                 | GtfFeature::Inter
                 | GtfFeature::InterCNS
                 | GtfFeature::IntronCNS

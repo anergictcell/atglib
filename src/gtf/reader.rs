@@ -465,4 +465,65 @@ mod tests {
             .is_err());
         assert!(reader.line().is_none());
     }
+
+    #[test]
+    fn test_5_utr() {
+        let transcript = "chr16\tncbiRefSeq.2021-05-17\t5UTR\t66969419\t66978999\t.\t+\t.\tgene_id \"CES2\"; transcript_id \"NM_001365408.1\"; gene_name \"CES2\";".as_bytes();
+        let mut reader = Reader::new(transcript);
+        assert_eq!(reader
+            .line()
+            .expect("The record contains one proper line")
+            .expect("The data is correct")
+            .feature(),
+            &GtfFeature::UTR5
+        );
+
+        let transcript = "chr16\tncbiRefSeq.2021-05-17\tfive_prime_utr\t66969419\t66978999\t.\t+\t.\tgene_id \"CES2\"; transcript_id \"NM_001365408.1\"; gene_name \"CES2\";".as_bytes();
+        let mut reader = Reader::new(transcript);
+        assert_eq!(reader
+            .line()
+            .expect("The record contains one proper line")
+            .expect("The data is correct")
+            .feature(),
+            &GtfFeature::UTR5
+        );
+    }
+
+    #[test]
+    fn test_3_utr() {
+        let transcript = "chr16\tncbiRefSeq.2021-05-17\t3UTR\t66969419\t66978999\t.\t+\t.\tgene_id \"CES2\"; transcript_id \"NM_001365408.1\"; gene_name \"CES2\";".as_bytes();
+        let mut reader = Reader::new(transcript);
+        assert_eq!(reader
+            .line()
+            .expect("The record contains one proper line")
+            .expect("The data is correct")
+            .feature(),
+            &GtfFeature::UTR3
+        );
+
+        let transcript = "chr16\tncbiRefSeq.2021-05-17\tthree_prime_utr\t66969419\t66978999\t.\t+\t.\tgene_id \"CES2\"; transcript_id \"NM_001365408.1\"; gene_name \"CES2\";".as_bytes();
+        let mut reader = Reader::new(transcript);
+        assert_eq!(reader
+            .line()
+            .expect("The record contains one proper line")
+            .expect("The data is correct")
+            .feature(),
+            &GtfFeature::UTR3
+        );
+    }
+
+    #[test]
+    fn test_utr() {
+        let transcript = "chr16\tncbiRefSeq.2021-05-17\tUTR\t66969419\t66978999\t.\t+\t.\tgene_id \"CES2\"; transcript_id \"NM_001365408.1\"; gene_name \"CES2\";".as_bytes();
+        let mut reader = Reader::new(transcript);
+        assert_eq!(reader
+            .line()
+            .expect("The record contains one proper line")
+            .expect("The data is correct")
+            .feature(),
+            &GtfFeature::UTR
+        );
+
+    }
+
 }

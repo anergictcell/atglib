@@ -172,7 +172,7 @@ impl<W: std::io::Write, R: std::io::Read + std::io::Seek> Writer<W, R> {
 
     /// Writes the header row for the tab-separated QC results
     pub fn write_header(&mut self) -> Result<(), std::io::Error> {
-        let columns = vec![
+        let columns = [
             "Gene",
             "transcript",
             "Exon",

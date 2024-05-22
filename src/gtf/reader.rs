@@ -10,6 +10,8 @@ use crate::models::{Transcript, TranscriptRead, Transcripts};
 use crate::utils::errors::ParseGtfError;
 use crate::utils::errors::ReadWriteError;
 
+use super::record::UncheckedGtfRecord;
+
 /// Parses GTF data and creates [`Transcript`]s.
 ///
 /// GTF data can be read from a file, stdin or remote sources
@@ -112,10 +114,18 @@ impl<R: std::io::Read> Reader<R> {
         }
 
         if self.line_content.is_empty() {
-            None
-        } else {
-            Some(GtfRecord::from_str(self.line_content.trim_end()))
+            return None;
         }
+
+        UncheckedGtfRecord::from_str(&self.line_content)
+            .map(|record| {
+                if record.standard_feature() {
+                    Some(GtfRecord::try_from(record))
+                } else {
+                    self.line()
+                }
+            })
+            .unwrap_or_else(|err| Some(Err(err)))
     }
 }
 
@@ -167,7 +177,7 @@ impl<R: std::io::Read> TranscriptRead for Reader<R> {
             match Transcript::try_from(gtf_transcript) {
                 Ok(transcript) => res.push(transcript),
                 Err(err) => {
-                    return Err(ReadWriteError::new(&format!("Error parsing {}", err)));
+                    return Err(ReadWriteError::new(format!("Error parsing {err}")));
                 }
             }
         }
@@ -199,15 +209,15 @@ mod test_nm_001385228 {
         let stop = t.stop_codon();
         assert_eq!(stop.len(), 2);
 
-        assert_eq!(t.exons()[0].is_coding(), false);
-        assert_eq!(t.exons()[1].is_coding(), false);
-        assert_eq!(t.exons()[2].is_coding(), false);
-        assert_eq!(t.exons()[3].is_coding(), false);
-        assert_eq!(t.exons()[4].is_coding(), false);
-        assert_eq!(t.exons()[5].is_coding(), true);
-        assert_eq!(t.exons()[6].is_coding(), true);
-        assert_eq!(t.exons()[7].is_coding(), true);
-        assert_eq!(t.exons()[8].is_coding(), false);
+        assert!(!t.exons()[0].is_coding());
+        assert!(!t.exons()[1].is_coding());
+        assert!(!t.exons()[2].is_coding());
+        assert!(!t.exons()[3].is_coding());
+        assert!(!t.exons()[4].is_coding());
+        assert!(t.exons()[5].is_coding());
+        assert!(t.exons()[6].is_coding());
+        assert!(t.exons()[7].is_coding());
+        assert!(!t.exons()[8].is_coding());
 
         assert_eq!(t.exons()[5].cds_start().unwrap(), 206105119);
         assert_eq!(t.exons()[6].cds_start().unwrap(), 206105123);
@@ -243,7 +253,7 @@ mod test_nm_201550 {
         let stop = t.stop_codon();
         assert_eq!(stop.len(), 1);
 
-        assert_eq!(t.exons()[0].is_coding(), true);
+        assert!(t.exons()[0].is_coding());
     }
 }
 
@@ -310,11 +320,11 @@ mod test_ighm {
         let stop = t.stop_codon();
         assert_eq!(stop.len(), 1);
 
-        assert_eq!(t.exons()[0].is_coding(), true);
-        assert_eq!(t.exons()[1].is_coding(), true);
-        assert_eq!(t.exons()[2].is_coding(), true);
-        assert_eq!(t.exons()[3].is_coding(), true);
-        assert_eq!(t.exons()[4].is_coding(), true);
+        assert!(t.exons()[0].is_coding());
+        assert!(t.exons()[1].is_coding());
+        assert!(t.exons()[2].is_coding());
+        assert!(t.exons()[3].is_coding());
+        assert!(t.exons()[4].is_coding());
 
         assert_eq!(t.cds_start_codon_stat(), CdsStat::Complete);
         assert_eq!(t.cds_stop_codon_stat(), CdsStat::Incomplete);
@@ -376,5 +386,147 @@ mod tests {
             transcripts.by_name("NM_201550.4")[0],
             &transcripts::nm_201550()
         )
+    }
+
+    #[test]
+    fn test_gene_line_returns_none() {
+        // no newline at the end
+        let transcript = "chr16\tncbiRefSeq.2021-05-17\tgene\t66969419\t66978999\t.\t+\t.\tgene_id \"CES2\"; transcript_id \"NM_001365408.1\"; gene_name \"CES2\";".as_bytes();
+        let mut reader = Reader::new(transcript);
+        assert!(reader.line().is_none());
+
+        // with newline at the end
+        let transcript = "chr16\tncbiRefSeq.2021-05-17\tgene\t66969419\t66978999\t.\t+\t.\tgene_id \"CES2\"; transcript_id \"NM_001365408.1\"; gene_name \"CES2\";\n".as_bytes();
+        let mut reader = Reader::new(transcript);
+        assert!(reader.line().is_none());
+
+        // no transcript and no gene tag
+        let transcript = "chr16\tncbiRefSeq.2021-05-17\tgene\t66969419\t66978999\t.\t+\t.\tgene_name \"CES2\";\n".as_bytes();
+        let mut reader = Reader::new(transcript);
+        assert!(reader.line().is_none());
+
+        // no transcript tag
+        let transcript = "chr16\tncbiRefSeq.2021-05-17\tgene\t66969419\t66978999\t.\t+\t.\tgene_id \"CES2\"; gene_name \"CES2\";\n".as_bytes();
+        let mut reader = Reader::new(transcript);
+        assert!(reader.line().is_none());
+
+        // no gene tag
+        let transcript = "chr16\tncbiRefSeq.2021-05-17\tgene\t66969419\t66978999\t.\t+\t.\ttranscript_id \"NM_001365408.1\"; gene_name \"CES2\";\n".as_bytes();
+        let mut reader = Reader::new(transcript);
+        assert!(reader.line().is_none());
+    }
+
+    #[test]
+    fn test_gene_line_is_skipped() {
+        let transcript = "chr16\tncbiRefSeq.2021-05-17\tgene\t66969419\t66978999\t.\t+\t.\tgene_id \"CES2\"; transcript_id \"NM_001365408.1\"; gene_name \"CES2\";\n\
+        chr1\tncbiRefSeq.2021-05-17\texon\t206100298\t206100445\t.\t-\t.\tgene_id \"SRGAP2B\"; transcript_id \"NM_001385228.1_2\"; exon_number \"9\"; exon_id \"NM_001385228.1_2.9\"; gene_name \"SRGAP2B\";".as_bytes();
+        let mut reader = Reader::new(transcript);
+        assert!(reader
+            .line()
+            .expect("The record contains one proper line")
+            .is_ok());
+        assert!(reader.line().is_none());
+    }
+
+    #[test]
+    fn test_gene_line_contains_invalid_data() {
+        let transcript = "chr16\tncbiRefSeq.2021-05-17\tgene\t66969419\t66978999\t.\tINVALID\t.\tgene_id \"CES2\"; transcript_id \"NM_001365408.1\"; gene_name \"CES2\";\n".as_bytes();
+        let mut reader = Reader::new(transcript);
+        assert!(reader
+            .line()
+            .expect("The record contains one proper line")
+            .is_err());
+        assert!(reader.line().is_none());
+    }
+
+    #[test]
+    fn test_without_gene_or_transcript_errors() {
+        let transcript = "chr16\tncbiRefSeq.2021-05-17\texon\t66969419\t66978999\t.\t+\t.\tgene_id \"CES2\"; transcript_id \"NM_001365408.1\"; gene_name \"CES2\";\n".as_bytes();
+        let mut reader = Reader::new(transcript);
+        assert!(reader
+            .line()
+            .expect("The record contains one proper line")
+            .is_ok());
+        assert!(reader.line().is_none());
+
+        let transcript = "chr16\tncbiRefSeq.2021-05-17\texon\t66969419\t66978999\t.\t+\t.\ttranscript_id \"NM_001365408.1\"; gene_name \"CES2\";\n".as_bytes();
+        let mut reader = Reader::new(transcript);
+        assert!(reader
+            .line()
+            .expect("The record contains one proper line")
+            .is_err());
+        assert!(reader.line().is_none());
+
+        let transcript = "chr16\tncbiRefSeq.2021-05-17\texon\t66969419\t66978999\t.\t+\t.\tgene_id \"CES2\"; gene_name \"CES2\";\n".as_bytes();
+        let mut reader = Reader::new(transcript);
+        assert!(reader
+            .line()
+            .expect("The record contains one proper line")
+            .is_err());
+        assert!(reader.line().is_none());
+    }
+
+    #[test]
+    fn test_5_utr() {
+        let transcript = "chr16\tncbiRefSeq.2021-05-17\t5UTR\t66969419\t66978999\t.\t+\t.\tgene_id \"CES2\"; transcript_id \"NM_001365408.1\"; gene_name \"CES2\";".as_bytes();
+        let mut reader = Reader::new(transcript);
+        assert_eq!(
+            reader
+                .line()
+                .expect("The record contains one proper line")
+                .expect("The data is correct")
+                .feature(),
+            &GtfFeature::UTR5
+        );
+
+        let transcript = "chr16\tncbiRefSeq.2021-05-17\tfive_prime_utr\t66969419\t66978999\t.\t+\t.\tgene_id \"CES2\"; transcript_id \"NM_001365408.1\"; gene_name \"CES2\";".as_bytes();
+        let mut reader = Reader::new(transcript);
+        assert_eq!(
+            reader
+                .line()
+                .expect("The record contains one proper line")
+                .expect("The data is correct")
+                .feature(),
+            &GtfFeature::UTR5
+        );
+    }
+
+    #[test]
+    fn test_3_utr() {
+        let transcript = "chr16\tncbiRefSeq.2021-05-17\t3UTR\t66969419\t66978999\t.\t+\t.\tgene_id \"CES2\"; transcript_id \"NM_001365408.1\"; gene_name \"CES2\";".as_bytes();
+        let mut reader = Reader::new(transcript);
+        assert_eq!(
+            reader
+                .line()
+                .expect("The record contains one proper line")
+                .expect("The data is correct")
+                .feature(),
+            &GtfFeature::UTR3
+        );
+
+        let transcript = "chr16\tncbiRefSeq.2021-05-17\tthree_prime_utr\t66969419\t66978999\t.\t+\t.\tgene_id \"CES2\"; transcript_id \"NM_001365408.1\"; gene_name \"CES2\";".as_bytes();
+        let mut reader = Reader::new(transcript);
+        assert_eq!(
+            reader
+                .line()
+                .expect("The record contains one proper line")
+                .expect("The data is correct")
+                .feature(),
+            &GtfFeature::UTR3
+        );
+    }
+
+    #[test]
+    fn test_utr() {
+        let transcript = "chr16\tncbiRefSeq.2021-05-17\tUTR\t66969419\t66978999\t.\t+\t.\tgene_id \"CES2\"; transcript_id \"NM_001365408.1\"; gene_name \"CES2\";".as_bytes();
+        let mut reader = Reader::new(transcript);
+        assert_eq!(
+            reader
+                .line()
+                .expect("The record contains one proper line")
+                .expect("The data is correct")
+                .feature(),
+            &GtfFeature::UTR
+        );
     }
 }

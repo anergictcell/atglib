@@ -248,7 +248,7 @@ mod test_spliceailine {
             .write_transcript_vec(&transcripts)
             .expect("Error writing into bytevec");
         let written_output = String::from_utf8(writer.into_inner().unwrap()).unwrap();
-        let expected_output = vec![
+        let expected_output = [
             "Test-Gene",
             "chr1",
             "+",
@@ -303,7 +303,7 @@ mod test_spliceailine {
             .write_transcripts(&transcripts)
             .expect("Error writing into bytevec");
         let written_output = String::from_utf8(writer.into_inner().unwrap()).unwrap();
-        let expected_output1 = vec![
+        let expected_output1 = [
             "Test-Gene",
             "chr1",
             "+",
@@ -314,7 +314,7 @@ mod test_spliceailine {
         ]
         .join("\t")
         .to_string();
-        let expected_output2 = vec![
+        let expected_output2 = [
             "Test-Gene_2",
             "chr1",
             "+",

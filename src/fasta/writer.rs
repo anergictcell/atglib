@@ -205,7 +205,7 @@ impl<W: std::io::Write, R: std::io::Read + std::io::Seek> Writer<W, R> {
         }
     }
 
-    /// Unwraps this Writer<W>, returning the underlying writer.
+    /// Unwraps this `Writer<W>`, returning the underlying writer.
     pub fn into_inner(self) -> Result<W, ReadWriteError> {
         match self.inner.into_inner() {
             Ok(res) => Ok(res),

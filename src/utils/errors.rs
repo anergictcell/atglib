@@ -101,7 +101,7 @@ impl fmt::Debug for ParseGtfError {
 
 impl From<BuildTranscriptError> for ParseGtfError {
     fn from(f: BuildTranscriptError) -> ParseGtfError {
-        ParseGtfError::new(&f.to_string())
+        ParseGtfError::new(f.to_string())
     }
 }
 
@@ -113,7 +113,7 @@ impl From<String> for ParseGtfError {
 
 impl From<ParseIntError> for ParseGtfError {
     fn from(e: ParseIntError) -> ParseGtfError {
-        ParseGtfError::new(&e.to_string())
+        ParseGtfError::new(e.to_string())
     }
 }
 

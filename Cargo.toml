@@ -23,3 +23,7 @@ criterion = "0.4"
 [[bench]]
 name = "genepred"
 harness = false
+
+[[bench]]
+name = "gtf"
+harness = false
